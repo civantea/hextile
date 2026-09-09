@@ -144,6 +144,13 @@ test('cada nivel describe exactamente sus colores disponibles', () => {
   });
 });
 
+test('la solución exige marcas verdes e inventario agotado', () => {
+  const solutionRule = LEVELS[0].rules.general[6].text;
+
+  assert.match(solutionRule, /✅/);
+  assert.match(solutionRule, /no quedan colores disponibles/);
+});
+
 test('solo permite colocar junto a un color y admite una cadena secuencial', () => {
   const level = LEVELS[0];
 

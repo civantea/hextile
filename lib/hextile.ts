@@ -133,7 +133,7 @@ export const LEVELS: LevelDefinition[] = [
           ],
         },
         {
-          text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅.',
+          text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅ y no quedan colores disponibles.',
         },
         {
           text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
