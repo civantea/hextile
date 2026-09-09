@@ -14,6 +14,7 @@ import {
   createLevelManifest,
 } from '../lib/level-schema.ts';
 import {
+  getCompactPlayOrderAssignments,
   getNextPlayOrder,
   levelManifestToDefinition,
 } from '../lib/level-catalog.ts';
@@ -248,7 +249,7 @@ test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
       id: TEST_LEVEL_ID,
       name: 'Nombre interno que no se muestra',
       deployed: true,
-      playOrder: 2,
+      playOrder: 1,
       originalSolution: {
         '0,0': 'celeste',
         '1,0': 'celeste',
@@ -271,8 +272,8 @@ test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
   );
 
   const level = levelManifestToDefinition(manifest);
-  assert.equal(level.id, 2);
-  assert.equal(level.label, 'Nivel 2');
+  assert.equal(level.id, 1);
+  assert.equal(level.label, 'Nivel 1');
   assert.deepEqual(level.fixedPlacements, manifest.initialDistribution);
   assert.deepEqual(level.inventory, { celeste: 1, verde: 0 });
   assert.deepEqual(
@@ -281,13 +282,25 @@ test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
   );
 });
 
-test('calcula una posición nueva después de todos los niveles actuales', () => {
+test('calcula la primera posición sin reservar un nivel heredado', () => {
+  assert.equal(getNextPlayOrder([]), 1);
   assert.equal(
-    getNextPlayOrder(
-      [{ playOrder: 4 }, { playOrder: 2 }, { deployed: false }],
-      1,
-    ),
-    5,
+    getNextPlayOrder([{ playOrder: 3 }, { playOrder: 1 }, { deployed: false }]),
+    4,
+  );
+});
+
+test('compacta la numeración de Play después de quitar un nivel', () => {
+  assert.deepEqual(
+    getCompactPlayOrderAssignments([
+      { id: 'primero', deployed: true, playOrder: 2 },
+      { id: 'retirado', deployed: false },
+      { id: 'ultimo', deployed: true, playOrder: 4 },
+    ]),
+    [
+      { id: 'primero', playOrder: 1 },
+      { id: 'ultimo', playOrder: 2 },
+    ],
   );
 });
 
@@ -297,6 +310,7 @@ test('todos los niveles actuales cumplen el esquema de despliegue', async () => 
   );
 
   assert.ok(files.length > 0);
+  const deployedOrders = [];
   for (const file of files) {
     const manifest = JSON.parse(
       await readFile(new URL(file, LEVELS_DIRECTORY), 'utf8'),
@@ -306,5 +320,11 @@ test('todos los niveles actuales cumplen el esquema de despliegue', async () => 
       () => assertLevelManifestSchema(manifest, { requireComplete: true }),
       file,
     );
+    if (manifest.deployed) deployedOrders.push(manifest.playOrder);
   }
+  deployedOrders.sort((left, right) => left - right);
+  assert.deepEqual(
+    deployedOrders,
+    Array.from({ length: deployedOrders.length }, (_, index) => index + 1),
+  );
 });

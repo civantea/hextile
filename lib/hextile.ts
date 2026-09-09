@@ -171,30 +171,6 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
   },
 ];
 
-export const LEVELS: LevelDefinition[] = [
-  {
-    id: 1,
-    label: 'Nivel 1',
-    inventory: {
-      celeste: 4,
-    },
-    fixedPlacements: {
-      '0,1': 'celeste',
-      '0,0': 'celeste',
-      '0,-1': 'celeste',
-    },
-    rules: {
-      general: GENERAL_RULES,
-      colors: [
-        {
-          color: 'celeste',
-          text: 'Debe tener al menos tres vecinos coloreados al terminar el nivel.',
-        },
-      ],
-    },
-  },
-];
-
 export const GENERATOR_TEMPLATE: LevelDefinition = {
   id: 0,
   label: 'Generar nivel',

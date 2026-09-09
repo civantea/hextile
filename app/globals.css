@@ -86,9 +86,20 @@ a:focus-visible {
   text-align: center;
 }
 
-.welcome-panel,
-.build-panel {
+.welcome-panel {
   width: 520px;
+}
+
+.build-panel {
+  width: 740px;
+}
+
+.build-panel .home-actions {
+  gap: 20px;
+}
+
+.build-panel .home-action {
+  width: 210px;
 }
 
 .home-title {
@@ -286,8 +297,13 @@ a:focus-visible {
   box-shadow: 0 4px 0 #166534;
 }
 
+.catalog-level-entry[data-deployed='true'][data-selectable='true'] {
+  cursor: pointer;
+}
+
 .catalog-stage-entry:hover,
-.catalog-level-entry[data-deployed='false']:hover {
+.catalog-level-entry[data-deployed='false']:hover,
+.catalog-level-entry[data-deployed='true'][data-selectable='true']:hover {
   transform: translateY(2px);
   box-shadow: 0 2px 0 var(--line);
 }

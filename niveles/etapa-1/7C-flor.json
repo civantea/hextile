@@ -1,7 +1,7 @@
 {
   "id": "7d274a8c-ef1a-4081-bdb7-710df71a37a9",
   "name": "7C-flor",
-  "deployed": false,
+  "deployed": true,
   "originalSolution": {
     "0,-1": "celeste",
     "1,-1": "celeste",
@@ -23,5 +23,6 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  }
+  },
+  "playOrder": 1
 }

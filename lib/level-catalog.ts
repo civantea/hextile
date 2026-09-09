@@ -15,16 +15,27 @@ export type LevelCatalogEntry = {
   playOrder?: number;
 };
 
-export function getNextPlayOrder(
-  manifests: readonly LevelManifest[],
-  builtInLevelCount: number,
-) {
+export function getNextPlayOrder(manifests: readonly LevelManifest[]) {
   return (
-    Math.max(
-      builtInLevelCount,
-      ...manifests.map((manifest) => manifest.playOrder ?? 0),
-    ) + 1
+    Math.max(0, ...manifests.map((manifest) => manifest.playOrder ?? 0)) + 1
   );
+}
+
+export function getCompactPlayOrderAssignments(
+  manifests: readonly LevelManifest[],
+) {
+  return manifests
+    .filter((manifest) => manifest.deployed)
+    .sort(
+      (left, right) =>
+        (left.playOrder ?? Number.MAX_SAFE_INTEGER) -
+          (right.playOrder ?? Number.MAX_SAFE_INTEGER) ||
+        left.id.localeCompare(right.id),
+    )
+    .map((manifest, index) => ({
+      id: manifest.id,
+      playOrder: index + 1,
+    }));
 }
 
 export function levelManifestToDefinition(

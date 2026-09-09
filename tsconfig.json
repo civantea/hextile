@@ -10,7 +10,12 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "types": ["node", "@cloudflare/workers-types", "vinext/types"],
+    "types": [
+      "node",
+      "@cloudflare/workers-types",
+      "vinext/types",
+      "vite/client"
+    ],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

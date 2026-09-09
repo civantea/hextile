@@ -7,7 +7,6 @@ import {
   GENERAL_RULES,
   GENERATOR_GENERAL_RULES,
   GENERATOR_TEMPLATE,
-  LEVELS,
   coordinateKey,
   getPlacementCounts,
   getRemainingInventory,
@@ -21,6 +20,26 @@ import {
   validatePlacements,
   validationIsSuccessful,
 } from '../lib/hextile.ts';
+
+const PLAYABLE_LEVEL_FIXTURE = {
+  id: 1,
+  label: 'Nivel de prueba',
+  inventory: { celeste: 4 },
+  fixedPlacements: {
+    '0,1': 'celeste',
+    '0,0': 'celeste',
+    '0,-1': 'celeste',
+  },
+  rules: {
+    general: GENERAL_RULES,
+    colors: [
+      {
+        color: 'celeste',
+        text: 'Debe tener al menos tres vecinos coloreados.',
+      },
+    ],
+  },
+};
 
 test('genera una matriz de 15 por 15 con un único centro axial', () => {
   assert.equal(BOARD_TILES.length, 225);
@@ -93,7 +112,7 @@ test('una sesión nueva solo avanza con una validación no vacía y completament
 });
 
 test('descuenta inventario y rechaza coordenadas, colores o celdas inválidas', () => {
-  const level = LEVELS[0];
+  const level = PLAYABLE_LEVEL_FIXTURE;
   const placed = placeTiles(
     {},
     level.inventory,
@@ -140,19 +159,8 @@ test('descuenta inventario y rechaza coordenadas, colores o celdas inválidas', 
   assert.equal(coordinateKey({ q: -3, r: 4 }), '-3,4');
 });
 
-test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', () => {
-  const level = LEVELS[0];
-  assert.deepEqual(level.fixedPlacements, {
-    '0,1': 'celeste',
-    '0,0': 'celeste',
-    '0,-1': 'celeste',
-  });
-  assert.deepEqual(level.inventory, { celeste: 4 });
-  assert.deepEqual(getRemainingInventory(level.inventory, {}), { celeste: 4 });
-});
-
-test('cada nivel describe exactamente sus colores disponibles', () => {
-  [...LEVELS, GENERATOR_TEMPLATE].forEach((level) => {
+test('el generador describe exactamente sus colores disponibles', () => {
+  [GENERATOR_TEMPLATE].forEach((level) => {
     const availableColors = Object.keys(level.inventory).sort();
     const describedColors = level.rules.colors.map((rule) => rule.color).sort();
 
@@ -197,9 +205,6 @@ test('los niveles jugables conservan el reglamento vigente de producción', () =
       text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
     },
   ]);
-  LEVELS.forEach((level) => {
-    assert.strictEqual(level.rules.general, GENERAL_RULES);
-  });
   assert.strictEqual(GENERATOR_TEMPLATE.rules.general, GENERATOR_GENERAL_RULES);
 });
 
@@ -318,7 +323,7 @@ test('el generador ordena sus colores y comienza sin mano inicial', () => {
 });
 
 test('solo permite colocar junto a un color y admite una cadena secuencial', () => {
-  const level = LEVELS[0];
+  const level = PLAYABLE_LEVEL_FIXTURE;
 
   assert.throws(
     () =>

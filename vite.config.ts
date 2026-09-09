@@ -19,8 +19,12 @@ import {
   assertLevelManifestSchema,
   createLevelManifest,
 } from './lib/level-schema';
-import { getNextPlayOrder, type LevelCatalogEntry } from './lib/level-catalog';
-import { LEVELS, validatePlacements } from './lib/hextile';
+import {
+  getCompactPlayOrderAssignments,
+  getNextPlayOrder,
+  type LevelCatalogEntry,
+} from './lib/level-catalog';
+import { validatePlacements } from './lib/hextile';
 import type { LevelManifest } from './lib/level-manifest';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -166,10 +170,7 @@ async function deployStoredLevel(input: unknown) {
     throw new Error('El nivel seleccionado ya fue agregado a Play.');
   }
 
-  const playOrder = getNextPlayOrder(
-    allLevels.map((level) => level.manifest),
-    LEVELS.length,
-  );
+  const playOrder = getNextPlayOrder(allLevels.map((level) => level.manifest));
   const manifest = createLevelManifest(
     {
       ...target.manifest,
@@ -185,6 +186,72 @@ async function deployStoredLevel(input: unknown) {
   );
 
   return toCatalogEntry({ ...target, manifest });
+}
+
+async function undeployStoredLevel(input: unknown) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('Selecciona un nivel para quitar.');
+  }
+  const { stage, id } = input as Record<string, unknown>;
+  if (typeof stage !== 'string' || typeof id !== 'string') {
+    throw new Error('Selecciona un nivel válido para quitar.');
+  }
+
+  const allLevels = await readAllStageLevels();
+  const target = allLevels.find(
+    (level) => level.stage === stage && level.manifest.id === id,
+  );
+  if (!target) {
+    throw new Error('No se encontró el nivel seleccionado.');
+  }
+  if (!target.manifest.deployed) {
+    throw new Error('El nivel seleccionado ya no está en Play.');
+  }
+
+  const removedManifestDraft = { ...target.manifest };
+  delete removedManifestDraft.playOrder;
+  const removedManifest = createLevelManifest(
+    { ...removedManifestDraft, deployed: false },
+    { requireComplete: true },
+  );
+  const remainingManifests = allLevels
+    .filter((level) => level.manifest.id !== target.manifest.id)
+    .map((level) => level.manifest);
+  const assignments = new Map(
+    getCompactPlayOrderAssignments(remainingManifests).map(
+      ({ id: manifestId, playOrder }) => [manifestId, playOrder],
+    ),
+  );
+
+  await Promise.all([
+    writeFile(
+      target.filePath,
+      `${JSON.stringify(removedManifest, null, 2)}\n`,
+      'utf8',
+    ),
+    ...allLevels
+      .filter(
+        (level) =>
+          level.manifest.id !== target.manifest.id && level.manifest.deployed,
+      )
+      .map((level) => {
+        const playOrder = assignments.get(level.manifest.id);
+        if (!playOrder) {
+          throw new Error('No se pudo recalcular el orden de Play.');
+        }
+        const manifest = createLevelManifest(
+          { ...level.manifest, playOrder },
+          { requireComplete: true },
+        );
+        return writeFile(
+          level.filePath,
+          `${JSON.stringify(manifest, null, 2)}\n`,
+          'utf8',
+        );
+      }),
+  ]);
+
+  return toCatalogEntry({ ...target, manifest: removedManifest });
 }
 
 async function writeLevelManifest({
@@ -280,6 +347,31 @@ function levelManifestWriter(): Plugin {
         try {
           if (request.method === 'GET') {
             const url = new URL(request.url ?? '/', 'http://localhost');
+            const view = url.searchParams.get('view');
+            const stage = url.searchParams.get('stage');
+            if (stage) {
+              const stageLevels = await readStageLevels(stage);
+              const levels = stageLevels
+                .filter(
+                  (level) => view !== 'deployed' || level.manifest.deployed,
+                )
+                .map(toCatalogEntry);
+              sendJson(response, 200, { stage, levels });
+              return;
+            }
+
+            if (view === 'deployed-stages') {
+              const stages = Array.from(
+                new Set(
+                  (await readAllStageLevels())
+                    .filter((level) => level.manifest.deployed)
+                    .map((level) => level.stage),
+                ),
+              ).sort((left, right) => left.localeCompare(right, 'es'));
+              sendJson(response, 200, { stages });
+              return;
+            }
+
             if (url.searchParams.get('deployed') === 'true') {
               const deployedLevels = (await readAllStageLevels())
                 .map((level) => level.manifest)
@@ -292,19 +384,20 @@ function levelManifestWriter(): Plugin {
               return;
             }
 
-            const stage = url.searchParams.get('stage');
-            if (stage) {
-              const levels = (await readStageLevels(stage)).map(toCatalogEntry);
-              sendJson(response, 200, { stage, levels });
-              return;
-            }
-
             sendJson(response, 200, { stages: await listStageNames() });
             return;
           }
 
           if (request.method === 'PATCH') {
-            const level = await deployStoredLevel(await readJsonBody(request));
+            const input = await readJsonBody(request);
+            const action =
+              input && typeof input === 'object'
+                ? (input as { action?: unknown }).action
+                : undefined;
+            const level =
+              action === 'undeploy'
+                ? await undeployStoredLevel(input)
+                : await deployStoredLevel(input);
             sendJson(response, 200, { level });
             return;
           }
