@@ -454,6 +454,20 @@ a:focus-visible {
   color: #ffffff;
 }
 
+.retire-menu {
+  width: 112px;
+}
+
+.retire-menu-item {
+  color: #bfdbfe;
+}
+
+.retire-menu-item:focus,
+.retire-menu-item[data-highlighted] {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
 .unavailable-menu {
   width: max-content;
   min-width: 246px;
@@ -558,6 +572,12 @@ a:focus-visible {
 .secondary-action {
   background: var(--tile);
   color: var(--ink);
+}
+
+.initial-state-action[aria-pressed='true'] {
+  background: #1d4ed8;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 2px #bfdbfe;
 }
 
 .primary-action:hover,

@@ -33,6 +33,7 @@ import {
   placeTiles,
   placeUnrestrictedTiles,
   removeUnrestrictedTile,
+  retireUnrestrictedTile,
   validatePlacements,
   type ColorId,
   type LevelDefinition,
@@ -174,27 +175,26 @@ function BoardScreen({
   const generalRules = isGenerator
     ? GENERATOR_GENERAL_RULES
     : GENERAL_RULES;
+  const levelColors = useMemo(
+    () => Object.keys(level.inventory) as ColorId[],
+    [level],
+  );
   const [playerPlacements, setPlayerPlacements] = useState<Placements>({});
   const [marks, setMarks] = useState<ValidationMarks>({});
   const [openTileKey, setOpenTileKey] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isInitialStateMode, setIsInitialStateMode] = useState(false);
+  const [initialHandCounts, setInitialHandCounts] = useState<
+    Partial<Record<ColorId, number>>
+  >(() => getPlacementCounts(levelColors, {}));
   const playerPlacementsRef = useRef<Placements>({});
-
-  const levelColors = useMemo(
-    () => Object.keys(level.inventory) as ColorId[],
-    [level],
-  );
   const inventoryCounts = useMemo(
     () =>
       isGenerator
         ? getPlacementCounts(levelColors, playerPlacements)
         : getRemainingInventory(level.inventory, playerPlacements),
     [isGenerator, level.inventory, levelColors, playerPlacements],
-  );
-  const initialStateCounts = useMemo(
-    () => getPlacementCounts(levelColors, level.fixedPlacements),
-    [level.fixedPlacements, levelColors],
   );
   const placements = useMemo(
     () => ({ ...level.fixedPlacements, ...playerPlacements }),
@@ -259,15 +259,43 @@ function BoardScreen({
     [],
   );
 
+  const retireGeneratorTile = useCallback(
+    (coordinate: RequestedPlacement['coordinate']) => {
+      const next = retireUnrestrictedTile(
+        playerPlacementsRef.current,
+        initialHandCounts,
+        coordinate,
+      );
+      flushSync(() => {
+        playerPlacementsRef.current = next.placements;
+        setPlayerPlacements(next.placements);
+        setInitialHandCounts(next.hand);
+        setMarks({});
+        setOpenTileKey(null);
+        setSaveStatus(null);
+      });
+    },
+    [initialHandCounts],
+  );
+
+  const toggleInitialStateMode = useCallback(() => {
+    flushSync(() => {
+      setIsInitialStateMode((current) => !current);
+      setOpenTileKey(null);
+    });
+  }, []);
+
   const resetLevel = useCallback(() => {
     flushSync(() => {
       playerPlacementsRef.current = {};
       setPlayerPlacements({});
+      setInitialHandCounts(getPlacementCounts(levelColors, {}));
+      setIsInitialStateMode(false);
       setMarks({});
       setOpenTileKey(null);
       setSaveStatus(null);
     });
-  }, []);
+  }, [levelColors]);
 
   const saveSolution = useCallback(async () => {
     const currentPlacements = playerPlacementsRef.current;
@@ -511,10 +539,10 @@ function BoardScreen({
                 />
               </div>
               <div className="generator-inventory-column">
-                <h2>Estado inicial</h2>
+                <h2>Mano inicial</h2>
                 <ColorCountList
                   colors={levelColors}
-                  counts={initialStateCounts}
+                  counts={initialHandCounts}
                 />
               </div>
             </div>
@@ -559,24 +587,38 @@ function BoardScreen({
           const isAdjacentToColor =
             isEmpty && hasColoredNeighbor(tile, placements);
           const canPlace =
+            !isInitialStateMode &&
             isEmpty &&
             hasAvailableColors &&
             (isGenerator || isAdjacentToColor);
-          const canRemove = isGenerator && Boolean(playerPlacements[tile.key]);
+          const isPlayerTile = Boolean(playerPlacements[tile.key]);
+          const canRemove =
+            isGenerator && !isInitialStateMode && isPlayerTile;
+          const canRetire =
+            isGenerator && isInitialStateMode && isPlayerTile;
           const showUnavailableNotice =
             !isGenerator &&
             isEmpty &&
             hasAvailableColors &&
             !isAdjacentToColor;
+          const showInitialStateUnavailable =
+            isGenerator && isInitialStateMode && isEmpty;
+          const unavailableMessage = showInitialStateUnavailable
+            ? 'no disponible, lee las instrucciones'
+            : showUnavailableNotice
+              ? 'no disponible, revisa el reglamento'
+              : null;
           const coordinate = `(${tile.q},${tile.r})`;
           const definition = color ? COLOR_DEFINITIONS[color] : undefined;
           const feedback = mark ? (mark.valid ? 'correcto' : 'incorrecto') : '';
           const ariaLabel = `Hexágono ${coordinate}, ${definition?.label ?? 'blanco'}${
             isFixed ? ', fijo' : ''
           }${canRemove ? ', se puede borrar' : ''}${
-            showUnavailableNotice ? ', no disponible' : ''
-          }${
+            canRetire ? ', se puede retirar' : ''
+          }${unavailableMessage ? ', no disponible' : ''}${
             mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''
+          }${
+            isInitialStateMode ? ', modo estado inicial activo' : ''
           }`;
           const positionStyle = {
             left: `calc(50% + ${(tile.column - BOARD_CENTER_INDEX) * 34 + (tile.row % 2 === 0 ? -17 : 0)}px)`,
@@ -683,7 +725,42 @@ function BoardScreen({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              ) : showUnavailableNotice ? (
+              ) : canRetire ? (
+                <DropdownMenu
+                  modal={false}
+                  open={openTileKey === tile.key}
+                  onOpenChange={(open) =>
+                    setOpenTileKey(open ? tile.key : null)
+                  }
+                >
+                  <DropdownMenuTrigger
+                    className="hex-button"
+                    style={buttonStyle}
+                    aria-label={ariaLabel}
+                    onClick={() => setOpenTileKey(tile.key)}
+                    data-center={
+                      tile.q === 0 && tile.r === 0 ? 'true' : undefined
+                    }
+                  >
+                    {buttonContents}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="color-menu retire-menu"
+                    side="right"
+                    sideOffset={8}
+                    align="center"
+                  >
+                    <DropdownMenuItem
+                      className="color-menu-item retire-menu-item"
+                      onClick={() =>
+                        retireGeneratorTile({ q: tile.q, r: tile.r })
+                      }
+                    >
+                      Retirar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : unavailableMessage ? (
                 <DropdownMenu
                   modal={false}
                   open={openTileKey === tile.key}
@@ -713,7 +790,7 @@ function BoardScreen({
                       className="unavailable-menu-item"
                       disabled
                     >
-                      no disponible, revisa el reglamento
+                      {unavailableMessage}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -750,6 +827,16 @@ function BoardScreen({
         >
           Validar
         </button>
+        {isGenerator ? (
+          <button
+            className="secondary-action initial-state-action"
+            type="button"
+            aria-pressed={isInitialStateMode}
+            onClick={toggleInitialStateMode}
+          >
+            {isInitialStateMode ? 'Salir' : 'Estado inicial'}
+          </button>
+        ) : null}
       </div>
     </main>
   );

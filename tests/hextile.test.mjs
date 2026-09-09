@@ -15,6 +15,7 @@ import {
   placeTiles,
   placeUnrestrictedTiles,
   removeUnrestrictedTile,
+  retireUnrestrictedTile,
   requirementIsMet,
   validatePlacements,
 } from '../lib/hextile.ts';
@@ -153,9 +154,12 @@ test('cada nivel describe exactamente sus colores disponibles', () => {
 test('la solución de un nivel exige marcas verdes e inventario agotado', () => {
   assert.match(GENERAL_RULES[6].text, /✅/);
   assert.match(GENERAL_RULES[6].text, /no quedan colores disponibles/);
-  assert.equal(
-    GENERATOR_GENERAL_RULES[6].text,
-    'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
+  assert.ok(
+    GENERATOR_GENERAL_RULES.some(
+      (rule) =>
+        rule.text ===
+        'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
+    ),
   );
 });
 
@@ -208,7 +212,37 @@ test('el generador permite borrar una pieza y actualiza su contador', () => {
   );
 });
 
-test('el generador ordena sus colores y comienza sin estado inicial', () => {
+test('el modo estado inicial retira piezas hacia la mano inicial', () => {
+  const placed = placeUnrestrictedTiles(
+    {},
+    [
+      { coordinate: { q: 0, r: 0 }, color: 'celeste' },
+      { coordinate: { q: 1, r: 0 }, color: 'rojo' },
+    ],
+  );
+  const retired = retireUnrestrictedTile(
+    placed,
+    getPlacementCounts(['celeste', 'rojo'], {}),
+    { q: 0, r: 0 },
+  );
+
+  assert.deepEqual(retired.placements, { '1,0': 'rojo' });
+  assert.deepEqual(retired.hand, { celeste: 1, rojo: 0 });
+  assert.match(
+    GENERATOR_GENERAL_RULES.map((rule) => rule.text).join(' '),
+    /Estado inicial.*Retirar.*Mano inicial/,
+  );
+  const stateModeRule = GENERATOR_GENERAL_RULES.find((rule) =>
+    rule.text.startsWith('Presiona Estado inicial'),
+  );
+  assert.match(stateModeRule?.text ?? '', /Salir/);
+  assert.match(
+    stateModeRule?.text ?? '',
+    /se conservan Colores seleccionados y Mano inicial/,
+  );
+});
+
+test('el generador ordena sus colores y comienza sin mano inicial', () => {
   const expectedOrder = [
     'celeste',
     'verde',

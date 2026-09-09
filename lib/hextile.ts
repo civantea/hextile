@@ -132,7 +132,7 @@ export const GENERAL_RULES: GeneralRule[] = [
 
 export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
   {
-    text: 'Elige cualquier hexágono blanco y asígnale un color.',
+    text: 'Fuera del modo Estado inicial, elige cualquier hexágono blanco y asígnale un color.',
   },
   {
     text: 'En el generador puedes pintar un hexágono aunque todos sus vecinos sean blancos.',
@@ -141,10 +141,16 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     text: 'No hay límite de piezas de ningún color.',
   },
   {
-    text: 'Los contadores registran cuántos hexágonos has usado de cada color.',
+    text: 'Colores seleccionados registra cuántas piezas de cada color permanecen en el tablero.',
   },
   {
     text: 'Para corregir una pieza, selecciona su hexágono y usa Borrar; el contador del color disminuirá.',
+  },
+  {
+    text: 'Presiona Estado inicial para entrar a ese modo y Salir para volver; al salir se conservan Colores seleccionados y Mano inicial. Mientras esté activo, los hexágonos blancos no están disponibles.',
+  },
+  {
+    text: 'En el modo Estado inicial, selecciona una pieza coloreada y usa Retirar para moverla a Mano inicial.',
   },
   {
     text: 'Presiona Validar para revisar cada hexágono coloreado.',
@@ -154,7 +160,7 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     text: 'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
   },
   {
-    text: 'El botón Reiniciar borra todas las piezas y las marcas de validación.',
+    text: 'El botón Reiniciar borra todas las piezas, la Mano inicial y las marcas de validación.',
   },
 ];
 
@@ -348,6 +354,29 @@ export function removeUnrestrictedTile(
   const next = { ...current };
   delete next[key];
   return next;
+}
+
+export function retireUnrestrictedTile(
+  current: Placements,
+  hand: Partial<Record<ColorId, number>>,
+  coordinate: Coordinate,
+) {
+  const key = coordinateKey(coordinate);
+  const nextPlacements = removeUnrestrictedTile(current, coordinate);
+  const color = current[key];
+  if (!color) {
+    throw new Error(
+      `El hexágono (${coordinate.q},${coordinate.r}) no tiene color.`,
+    );
+  }
+
+  return {
+    placements: nextPlacements,
+    hand: {
+      ...hand,
+      [color]: (hand[color] ?? 0) + 1,
+    },
+  };
 }
 
 export function placeTiles(
