@@ -43,6 +43,13 @@ export type LevelDefinition = {
   label: string;
   inventory: Partial<Record<ColorId, number>>;
   fixedPlacements: Placements;
+  rules: {
+    general: string[];
+    colors: Array<{
+      color: ColorId;
+      text: string;
+    }>;
+  };
 };
 
 export const COLOR_DEFINITIONS: Record<ColorId, ColorDefinition> = {
@@ -95,6 +102,24 @@ export const LEVELS: LevelDefinition[] = [
       '0,1': 'celeste',
       '0,0': 'celeste',
       '0,-1': 'celeste',
+    },
+    rules: {
+      general: [
+        'Elige un hexágono blanco y asígnale un color disponible.',
+        'Un hexágono coloreado ya no puede modificarse.',
+        'Consulta a la izquierda cuántas piezas quedan de cada color.',
+        'Usa todas las piezas: los contadores deben llegar a cero.',
+        'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
+        'Presiona Validar. Cada hexágono coloreado, inicial o colocado por ti, mostrará ✅ si cumple las reglas.',
+        'Si aparece ❌, la solución es incorrecta. Reinicia y prueba otra distribución.',
+        'Reiniciar borra tus piezas, pero conserva los hexágonos iniciales.',
+      ],
+      colors: [
+        {
+          color: 'celeste',
+          text: 'Debe tener al menos tres vecinos coloreados al terminar el nivel.',
+        },
+      ],
     },
   },
 ];

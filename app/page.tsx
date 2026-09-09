@@ -294,6 +294,40 @@ function LevelScreen() {
         })}
       </aside>
 
+      <aside className="rules-panel" aria-labelledby="rules-title">
+        <h2 id="rules-title">Reglamento</h2>
+
+        <section aria-labelledby="general-rules-title">
+          <h3 id="general-rules-title">Reglas generales</h3>
+          <ol className="rules-list">
+            {LEVEL.rules.general.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ol>
+        </section>
+
+        <section aria-labelledby="color-rules-title">
+          <h3 id="color-rules-title">Reglas de colores</h3>
+          <ul className="color-rules-list">
+            {LEVEL.rules.colors.map((rule) => {
+              const definition = COLOR_DEFINITIONS[rule.color];
+              return (
+                <li key={rule.color}>
+                  <span
+                    className="rule-color-swatch"
+                    style={{ backgroundColor: definition.cssColor }}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>{definition.label}:</strong> {rule.text}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </aside>
+
       <div className="board-shell" aria-label="Tablero hexagonal de 15 por 15">
         {BOARD_TILES.map((tile) => {
           const color = placements[tile.key];
