@@ -13,6 +13,7 @@ export type InitialHand = Partial<Record<ColorId, number>>;
 export type LevelManifest = {
   id: string;
   name: string;
+  deployed: boolean;
   originalSolution: Placements;
   initialDistribution?: Placements;
   initialHand?: InitialHand;

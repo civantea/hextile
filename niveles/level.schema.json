@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hextile.local/schemas/level.schema.json",
+  "title": "Manifiesto de nivel HEXTILE",
+  "description": "Estructura común para niveles en preparación y niveles completos.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "deployed", "originalSolution"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "deployed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica si el nivel ya fue publicado para jugarse. Los niveles nuevos comienzan en false."
+    },
+    "originalSolution": {
+      "$ref": "#/$defs/nonEmptyPlacements"
+    },
+    "initialDistribution": {
+      "$ref": "#/$defs/placements"
+    },
+    "initialHand": {
+      "$ref": "#/$defs/initialHand"
+    }
+  },
+  "dependentRequired": {
+    "initialDistribution": ["initialHand"],
+    "initialHand": ["initialDistribution"]
+  },
+  "$defs": {
+    "color": {
+      "type": "string",
+      "enum": ["celeste", "verde", "morado", "azul", "naranja", "rojo"]
+    },
+    "placements": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^-?(0|[1-9][0-9]*),-?(0|[1-9][0-9]*)$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/color"
+      },
+      "maxProperties": 225
+    },
+    "nonEmptyPlacements": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^-?(0|[1-9][0-9]*),-?(0|[1-9][0-9]*)$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/color"
+      },
+      "minProperties": 1,
+      "maxProperties": 225
+    },
+    "initialHand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["celeste", "verde", "morado", "azul", "naranja", "rojo"],
+      "properties": {
+        "celeste": { "type": "integer", "minimum": 0, "maximum": 225 },
+        "verde": { "type": "integer", "minimum": 0, "maximum": 225 },
+        "morado": { "type": "integer", "minimum": 0, "maximum": 225 },
+        "azul": { "type": "integer", "minimum": 0, "maximum": 225 },
+        "naranja": { "type": "integer", "minimum": 0, "maximum": 225 },
+        "rojo": { "type": "integer", "minimum": 0, "maximum": 225 }
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 {
   "id": "f5d1f49a-1536-4209-b167-f2e3014c133d",
   "name": "12C-dona",
+  "deployed": false,
   "originalSolution": {
     "0,-2": "celeste",
     "1,-2": "celeste",

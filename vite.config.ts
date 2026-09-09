@@ -12,10 +12,13 @@ import {
   levelNameToFilename,
   parseLevelInitialStatePayload,
   parseLevelManifestPayload,
-  type LevelManifest,
   type LevelInitialStatePayload,
   type LevelManifestPayload,
 } from './lib/level-manifest';
+import {
+  assertLevelManifestSchema,
+  createLevelManifest,
+} from './lib/level-schema';
 import { validatePlacements } from './lib/hextile';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -69,7 +72,7 @@ async function writeLevelManifest({
 
   const id = randomUUID();
   const fileName = levelNameToFilename(name);
-  const manifest: LevelManifest = { id, name, originalSolution };
+  const manifest = createLevelManifest({ id, name, originalSolution });
   try {
     await writeFile(
       resolve(levelsDirectory, fileName),
@@ -113,6 +116,7 @@ async function completeLevelManifest({
       continue;
     }
 
+    assertLevelManifestSchema(stored);
     const original = parseLevelManifestPayload(stored);
     if (
       !initialStateMatchesOriginalSolution(
@@ -126,13 +130,16 @@ async function completeLevelManifest({
       );
     }
 
-    const manifest: LevelManifest = {
-      id,
-      name: original.name,
-      originalSolution: original.originalSolution,
-      initialDistribution,
-      initialHand,
-    };
+    const manifest = createLevelManifest(
+      {
+        id,
+        name: original.name,
+        originalSolution: original.originalSolution,
+        initialDistribution,
+        initialHand,
+      },
+      { requireComplete: true },
+    );
     await writeFile(filePath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
     return { id, fileName: file.name };
   }

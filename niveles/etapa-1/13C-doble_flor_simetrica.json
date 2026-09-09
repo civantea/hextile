@@ -1,6 +1,7 @@
 {
   "id": "620a24bc-5117-469c-84ae-fb25238e7d86",
   "name": "doble flor simetrica",
+  "deployed": false,
   "originalSolution": {
     "0,-2": "celeste",
     "1,-2": "celeste",
