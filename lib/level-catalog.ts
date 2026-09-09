@@ -49,6 +49,50 @@ export function getNextLevelNumber(
   );
 }
 
+export function getAvailableLevelPositions(
+  manifests: readonly LevelManifest[],
+  stage: number,
+) {
+  const deployedCount = manifests.filter(
+    (manifest) => manifest.deployed && manifest.stage === stage,
+  ).length;
+
+  return Array.from({ length: deployedCount + 1 }, (_, index) => index + 1);
+}
+
+export function getInsertedLevelNumberAssignments(
+  manifests: readonly LevelManifest[],
+  stage: number,
+  insertedId: string,
+  insertedLevelNumber: number,
+) {
+  const deployed = manifests
+    .filter((manifest) => manifest.deployed && manifest.stage === stage)
+    .sort(
+      (left, right) =>
+        (left.levelNumber ?? Number.MAX_SAFE_INTEGER) -
+          (right.levelNumber ?? Number.MAX_SAFE_INTEGER) ||
+        left.id.localeCompare(right.id),
+    );
+  const maximumPosition = deployed.length + 1;
+
+  if (
+    !Number.isInteger(insertedLevelNumber) ||
+    insertedLevelNumber < 1 ||
+    insertedLevelNumber > maximumPosition
+  ) {
+    throw new Error(`La posición debe estar entre 1 y ${maximumPosition}.`);
+  }
+
+  const orderedIds = deployed.map((manifest) => manifest.id);
+  orderedIds.splice(insertedLevelNumber - 1, 0, insertedId);
+
+  return orderedIds.map((id, index) => ({
+    id,
+    levelNumber: index + 1,
+  }));
+}
+
 export function getCompactLevelNumberAssignments(
   manifests: readonly LevelManifest[],
   stage: number,

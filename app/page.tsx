@@ -255,6 +255,8 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
   const [stages, setStages] = useState<string[]>([]);
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
   const [levels, setLevels] = useState<LevelCatalogEntry[]>([]);
+  const [availablePositions, setAvailablePositions] = useState<number[]>([]);
+  const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [pendingLevel, setPendingLevel] = useState<LevelCatalogEntry | null>(
     null,
   );
@@ -309,6 +311,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
     async (stage: string) => {
       setSelectedStage(stage);
       setLevels([]);
+      setAvailablePositions([]);
       setIsLoading(true);
       setError(null);
       try {
@@ -319,12 +322,18 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         });
         const result = (await response.json()) as {
           levels?: LevelCatalogEntry[];
+          availablePositions?: number[];
           error?: string;
         };
         if (!response.ok || !Array.isArray(result.levels)) {
           throw new Error(result.error ?? 'No se pudieron cargar los niveles.');
         }
         setLevels(result.levels);
+        setAvailablePositions(
+          !isRemoving && Array.isArray(result.availablePositions)
+            ? result.availablePositions
+            : [],
+        );
       } catch (requestError) {
         setError(
           requestError instanceof Error
@@ -341,11 +350,18 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
   const closeConfirmation = useCallback(() => {
     confirmationDialogRef.current?.close();
     setPendingLevel(null);
+    setSelectedPosition(null);
     setError(null);
   }, []);
 
   const updatePendingLevel = useCallback(async () => {
-    if (!pendingLevel || pendingLevel.deployed !== isRemoving) return;
+    if (
+      !pendingLevel ||
+      pendingLevel.deployed !== isRemoving ||
+      (!isRemoving && selectedPosition === null)
+    ) {
+      return;
+    }
     setIsUpdating(true);
     setError(null);
     try {
@@ -356,6 +372,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
           action,
           stage: pendingLevel.stageName,
           id: pendingLevel.id,
+          ...(!isRemoving ? { levelNumber: selectedPosition } : {}),
         }),
       });
       const result = (await response.json()) as {
@@ -375,11 +392,12 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
       setLevels(remaining);
       confirmationDialogRef.current?.close();
       setPendingLevel(null);
+      setSelectedPosition(null);
       if (remaining.length === 0) {
         setStages((currentStages) =>
           currentStages.filter((stage) => stage !== selectedStage),
         );
-      } else if (isRemoving) {
+      } else {
         await openStage(result.level.stageName);
       }
       window.dispatchEvent(new Event(LEVEL_CATALOG_CHANGED_EVENT));
@@ -394,7 +412,15 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
     } finally {
       setIsUpdating(false);
     }
-  }, [action, isRemoving, levels, openStage, pendingLevel, selectedStage]);
+  }, [
+    action,
+    isRemoving,
+    levels,
+    openStage,
+    pendingLevel,
+    selectedPosition,
+    selectedStage,
+  ]);
 
   return (
     <main className="home-screen catalog-screen">
@@ -411,6 +437,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
               onClick={() => {
                 setSelectedStage(null);
                 setLevels([]);
+                setAvailablePositions([]);
                 setError(null);
               }}
             >
@@ -459,7 +486,15 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
                   data-deployed={level.deployed ? 'true' : 'false'}
                   data-selectable={isRemoving ? 'true' : undefined}
                   disabled={isRemoving ? !level.deployed : level.deployed}
-                  onClick={() => setPendingLevel(level)}
+                  onClick={() => {
+                    if (!isRemoving) {
+                      setSelectedPosition(
+                        availablePositions[availablePositions.length - 1] ??
+                          null,
+                      );
+                    }
+                    setPendingLevel(level);
+                  }}
                 >
                   <span>
                     {isRemoving ? `${level.levelNumber}. ` : ''}
@@ -482,7 +517,10 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         className="add-level-dialog"
         ref={confirmationDialogRef}
         aria-labelledby="level-catalog-dialog-title"
-        onClose={() => setPendingLevel(null)}
+        onClose={() => {
+          setPendingLevel(null);
+          setSelectedPosition(null);
+        }}
       >
         <div className="add-level-dialog-content">
           <h2 id="level-catalog-dialog-title">
@@ -491,6 +529,28 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
               : '¿Quieres agregar el nivel?'}
           </h2>
           <p>{pendingLevel?.name}</p>
+          {!isRemoving ? (
+            <label className="level-position-field" htmlFor="level-position">
+              <span>Posición en la etapa</span>
+              <select
+                id="level-position"
+                value={selectedPosition ?? ''}
+                disabled={isUpdating}
+                onChange={(event) =>
+                  setSelectedPosition(Number(event.target.value))
+                }
+              >
+                {availablePositions.map((position) => (
+                  <option key={position} value={position}>
+                    {position}
+                  </option>
+                ))}
+              </select>
+              <small>
+                Los niveles desde esta posición se recorrerán un lugar.
+              </small>
+            </label>
+          ) : null}
           {error ? (
             <p className="catalog-dialog-error" role="alert">
               {error}
@@ -508,7 +568,9 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
             <button
               className="primary-action"
               type="button"
-              disabled={isUpdating}
+              disabled={
+                isUpdating || (!isRemoving && selectedPosition === null)
+              }
               onClick={() => void updatePendingLevel()}
             >
               {isUpdating

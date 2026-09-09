@@ -3,7 +3,7 @@
   "name": "9V-disconexo",
   "deployed": true,
   "stage": 1,
-  "levelNumber": 10,
+  "levelNumber": 11,
   "originalSolution": {
     "-2,-1": "verde",
     "-1,-1": "verde",

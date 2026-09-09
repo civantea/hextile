@@ -3,7 +3,7 @@
   "name": "12C-compacto",
   "deployed": true,
   "stage": 1,
-  "levelNumber": 2,
+  "levelNumber": 3,
   "originalSolution": {
     "0,-2": "celeste",
     "1,-2": "celeste",

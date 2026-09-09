@@ -14,7 +14,9 @@ import {
   createLevelManifest,
 } from '../lib/level-schema.ts';
 import {
+  getAvailableLevelPositions,
   getCompactLevelNumberAssignments,
+  getInsertedLevelNumberAssignments,
   getNextLevelNumber,
   levelManifestToDefinition,
   sortLevelCatalogEntries,
@@ -318,6 +320,44 @@ test('calcula la siguiente posición solo dentro de la etapa indicada', () => {
       1,
     ),
     4,
+  );
+});
+
+test('ofrece una posición por cada nivel desplegado más la posición final', () => {
+  assert.deepEqual(
+    getAvailableLevelPositions(
+      [
+        { deployed: true, stage: 1 },
+        { deployed: true, stage: 1 },
+        { deployed: false, stage: 1 },
+        { deployed: true, stage: 2 },
+      ],
+      1,
+    ),
+    [1, 2, 3],
+  );
+});
+
+test('inserta un nivel y recorre únicamente los posteriores de su etapa', () => {
+  const manifests = [
+    { id: 'primero', deployed: true, stage: 1, levelNumber: 1 },
+    { id: 'segundo', deployed: true, stage: 1, levelNumber: 2 },
+    { id: 'tercero', deployed: true, stage: 1, levelNumber: 3 },
+    { id: 'otra-etapa', deployed: true, stage: 2, levelNumber: 1 },
+  ];
+
+  assert.deepEqual(
+    getInsertedLevelNumberAssignments(manifests, 1, 'nuevo', 2),
+    [
+      { id: 'primero', levelNumber: 1 },
+      { id: 'nuevo', levelNumber: 2 },
+      { id: 'segundo', levelNumber: 3 },
+      { id: 'tercero', levelNumber: 4 },
+    ],
+  );
+  assert.throws(
+    () => getInsertedLevelNumberAssignments(manifests, 1, 'nuevo', 5),
+    /entre 1 y 4/,
   );
 });
 

@@ -20,8 +20,9 @@ import {
   createLevelManifest,
 } from './lib/level-schema';
 import {
+  getAvailableLevelPositions,
   getCompactLevelNumberAssignments,
-  getNextLevelNumber,
+  getInsertedLevelNumberAssignments,
   sortLevelCatalogEntries,
   type LevelCatalogEntry,
 } from './lib/level-catalog';
@@ -167,8 +168,12 @@ async function deployStoredLevel(input: unknown) {
   if (!input || typeof input !== 'object') {
     throw new Error('Selecciona un nivel para agregar.');
   }
-  const { stage, id } = input as Record<string, unknown>;
-  if (typeof stage !== 'string' || typeof id !== 'string') {
+  const { stage, id, levelNumber } = input as Record<string, unknown>;
+  if (
+    typeof stage !== 'string' ||
+    typeof id !== 'string' ||
+    typeof levelNumber !== 'number'
+  ) {
     throw new Error('Selecciona un nivel válido para agregar.');
   }
 
@@ -184,24 +189,59 @@ async function deployStoredLevel(input: unknown) {
   }
 
   const stageNumber = stageNameToNumber(stage);
-  const levelNumber = getNextLevelNumber(
-    allLevels.map((level) => level.manifest),
-    stageNumber,
+  const assignments = new Map(
+    getInsertedLevelNumberAssignments(
+      allLevels.map((level) => level.manifest),
+      stageNumber,
+      target.manifest.id,
+      levelNumber,
+    ).map(({ id: manifestId, levelNumber: assignedLevelNumber }) => [
+      manifestId,
+      assignedLevelNumber,
+    ]),
   );
+  const targetLevelNumber = assignments.get(target.manifest.id);
+  if (!targetLevelNumber) {
+    throw new Error('No se pudo calcular la posición del nivel.');
+  }
   const manifest = createLevelManifest(
     {
       ...target.manifest,
       deployed: true,
       stage: stageNumber,
-      levelNumber,
+      levelNumber: targetLevelNumber,
     },
     { requireComplete: true },
   );
-  await writeFile(
-    target.filePath,
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    'utf8',
-  );
+  await Promise.all([
+    writeFile(
+      target.filePath,
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      'utf8',
+    ),
+    ...allLevels
+      .filter(
+        (level) =>
+          level.manifest.id !== target.manifest.id &&
+          level.manifest.deployed &&
+          level.manifest.stage === stageNumber,
+      )
+      .map((level) => {
+        const assignedLevelNumber = assignments.get(level.manifest.id);
+        if (!assignedLevelNumber) {
+          throw new Error('No se pudo recalcular el orden de Play.');
+        }
+        const shiftedManifest = createLevelManifest(
+          { ...level.manifest, levelNumber: assignedLevelNumber },
+          { requireComplete: true },
+        );
+        return writeFile(
+          level.filePath,
+          `${JSON.stringify(shiftedManifest, null, 2)}\n`,
+          'utf8',
+        );
+      }),
+  ]);
 
   return toCatalogEntry({ ...target, manifest });
 }
@@ -387,7 +427,18 @@ function levelManifestWriter(): Plugin {
                   .map(toCatalogEntry),
                 catalogView,
               );
-              sendJson(response, 200, { stage, levels });
+              const availablePositions =
+                catalogView === 'undeployed'
+                  ? getAvailableLevelPositions(
+                      stageLevels.map((level) => level.manifest),
+                      stageNameToNumber(stage),
+                    )
+                  : undefined;
+              sendJson(response, 200, {
+                stage,
+                levels,
+                ...(availablePositions ? { availablePositions } : {}),
+              });
               return;
             }
 

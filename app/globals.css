@@ -1046,6 +1046,34 @@ a:focus-visible {
   font-weight: 700;
 }
 
+.level-position-field {
+  display: grid;
+  gap: 7px;
+  text-align: left;
+}
+
+.level-position-field > span {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.level-position-field select {
+  width: 100%;
+  border: 2px solid var(--line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 9px 11px;
+  font: inherit;
+  font-weight: 750;
+}
+
+.level-position-field small {
+  color: var(--muted-ink);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .add-level-dialog-actions {
   display: flex;
   justify-content: center;
