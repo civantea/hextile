@@ -69,6 +69,7 @@ declare global {
 
 type ScreenMode = 'level' | 'generator';
 type BuildSessionState = 'new' | 'solution-validated';
+type RulesTab = 'general' | 'colors' | 'validate';
 
 type SaveStatus = {
   tone: 'success' | 'error';
@@ -174,9 +175,7 @@ function BoardScreen({
   mode?: ScreenMode;
 }) {
   const isGenerator = mode === 'generator';
-  const generalRules = isGenerator
-    ? GENERATOR_GENERAL_RULES
-    : GENERAL_RULES;
+  const generalRules = isGenerator ? GENERATOR_GENERAL_RULES : GENERAL_RULES;
   const levelColors = useMemo(
     () => Object.keys(level.inventory) as ColorId[],
     [level],
@@ -187,6 +186,7 @@ function BoardScreen({
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialStateMode, setIsInitialStateMode] = useState(false);
+  const [activeRulesTab, setActiveRulesTab] = useState<RulesTab>('general');
   const [buildSessionState, setBuildSessionState] =
     useState<BuildSessionState>('new');
   const [initialHandCounts, setInitialHandCounts] = useState<
@@ -208,9 +208,7 @@ function BoardScreen({
     () =>
       isGenerator
         ? levelColors
-        : levelColors.filter(
-            (color) => (inventoryCounts[color] ?? 0) > 0,
-          ),
+        : levelColors.filter((color) => (inventoryCounts[color] ?? 0) > 0),
     [inventoryCounts, isGenerator, levelColors],
   );
 
@@ -321,8 +319,7 @@ function BoardScreen({
     if (Object.keys(currentPlacements).length === 0) {
       setSaveStatus({
         tone: 'error',
-        message:
-          'No se puede guardar: pinta y valida al menos un hexágono.',
+        message: 'No se puede guardar: pinta y valida al menos un hexágono.',
       });
       return;
     }
@@ -330,8 +327,7 @@ function BoardScreen({
     if (Object.values(nextMarks).some((mark) => !mark.valid)) {
       setSaveStatus({
         tone: 'error',
-        message:
-          'No se puede guardar: la validación contiene uno o más ❌.',
+        message: 'No se puede guardar: la validación contiene uno o más ❌.',
       });
       return;
     }
@@ -490,55 +486,142 @@ function BoardScreen({
         <h1>{level.label}</h1>
       </header>
 
-      <aside
-        className="general-rules-panel sidebar-card"
-        aria-labelledby="general-rules-title"
-      >
-        <h2 id="general-rules-title">Reglamento general</h2>
-        <ol className="rules-list">
-          {generalRules.map((rule) => (
-            <li key={rule.text}>
-              {rule.text}
-              {rule.details ? (
-                <ul className="rule-details">
-                  {rule.details.map((detail) => (
-                    <li key={detail}>{detail}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </li>
-          ))}
-        </ol>
+      <aside className="rules-panel sidebar-card" aria-label="Reglamento">
+        <div
+          className="rules-tabs"
+          role="tablist"
+          aria-label="Secciones del reglamento"
+        >
+          <button
+            className="rules-tab"
+            type="button"
+            role="tab"
+            id="general-rules-tab"
+            aria-selected={activeRulesTab === 'general'}
+            aria-controls="general-rules-panel"
+            data-active={activeRulesTab === 'general' ? 'true' : 'false'}
+            onClick={() => setActiveRulesTab('general')}
+          >
+            Uso general
+          </button>
+          <button
+            className="rules-tab"
+            type="button"
+            role="tab"
+            id="color-rules-tab"
+            aria-selected={activeRulesTab === 'colors'}
+            aria-controls="color-rules-panel"
+            data-active={activeRulesTab === 'colors' ? 'true' : 'false'}
+            onClick={() => setActiveRulesTab('colors')}
+          >
+            Reglas de colores
+          </button>
+          <button
+            className="rules-tab"
+            type="button"
+            role="tab"
+            id="validate-rules-tab"
+            aria-selected={activeRulesTab === 'validate'}
+            aria-controls="validate-rules-panel"
+            data-active={activeRulesTab === 'validate' ? 'true' : 'false'}
+            onClick={() => setActiveRulesTab('validate')}
+          >
+            Validar
+          </button>
+        </div>
+
+        {activeRulesTab === 'general' ? (
+          <section
+            className="rules-tab-panel"
+            id="general-rules-panel"
+            role="tabpanel"
+            aria-labelledby="general-rules-tab"
+          >
+            <h2>Uso general</h2>
+            <ol className="rules-list">
+              {generalRules.map((rule) => (
+                <li key={rule.text}>
+                  {rule.text}
+                  {rule.details ? (
+                    <ul className="rule-details">
+                      {rule.details.map((detail) => (
+                        <li key={detail}>{detail}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {activeRulesTab === 'colors' ? (
+          <section
+            className="rules-tab-panel"
+            id="color-rules-panel"
+            role="tabpanel"
+            aria-labelledby="color-rules-tab"
+          >
+            <h2>Reglas de colores</h2>
+            <ul className="color-rules-list">
+              {level.rules.colors.map((rule) => {
+                const definition = COLOR_DEFINITIONS[rule.color];
+                return (
+                  <li key={rule.color}>
+                    <span
+                      className="rule-color-swatch"
+                      style={{ backgroundColor: definition.cssColor }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <strong>{definition.label}:</strong> {rule.text}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+
+        {activeRulesTab === 'validate' ? (
+          <section
+            className="rules-tab-panel validate-rules-panel"
+            id="validate-rules-panel"
+            role="tabpanel"
+            aria-labelledby="validate-rules-tab"
+          >
+            <h2>Primer paso: validar</h2>
+            <ol className="validation-flow-list">
+              <li>Arma una solución en el tablero.</li>
+              <li>
+                Presiona Validar para revisar todos los hexágonos coloreados.
+              </li>
+              <li>
+                Cada hexágono debe mostrar ✅. Si alguno muestra ❌, corrige la
+                distribución y valida de nuevo.
+              </li>
+              {isGenerator ? (
+                <li>
+                  Cuando todos muestran ✅, se completa este paso y se habilita
+                  Guardar solución.
+                </li>
+              ) : (
+                <li>
+                  La solución es válida cuando todos muestran ✅ y no quedan
+                  colores disponibles.
+                </li>
+              )}
+            </ol>
+          </section>
+        ) : null}
       </aside>
 
       <aside
         className="level-sidebar"
-        aria-label="Reglamento de colores e inventario"
+        aria-label={
+          isGenerator ? 'Contadores del generador' : 'Colores disponibles'
+        }
       >
-        <section
-          className="color-rules-panel sidebar-card"
-          aria-labelledby="color-rules-title"
-        >
-          <h2 id="color-rules-title">Reglamento de colores</h2>
-          <ul className="color-rules-list">
-            {level.rules.colors.map((rule) => {
-              const definition = COLOR_DEFINITIONS[rule.color];
-              return (
-                <li key={rule.color}>
-                  <span
-                    className="rule-color-swatch"
-                    style={{ backgroundColor: definition.cssColor }}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    <strong>{definition.label}:</strong> {rule.text}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
         <section
           className="inventory-panel sidebar-card"
           aria-labelledby={
@@ -549,10 +632,7 @@ function BoardScreen({
             <div className="generator-inventory-columns">
               <div className="generator-inventory-column">
                 <h2 id="initial-distribution-title">Distribución inicial</h2>
-                <ColorCountList
-                  colors={levelColors}
-                  counts={inventoryCounts}
-                />
+                <ColorCountList colors={levelColors} counts={inventoryCounts} />
               </div>
               <div className="generator-inventory-column">
                 <h2>Mano inicial</h2>
@@ -572,11 +652,7 @@ function BoardScreen({
 
         {isGenerator ? (
           <>
-            <button
-              className="save-level-action"
-              type="button"
-              disabled
-            >
+            <button className="save-level-action" type="button" disabled>
               Guardar nivel
             </button>
             {saveStatus ? (
@@ -607,15 +683,10 @@ function BoardScreen({
             hasAvailableColors &&
             (isGenerator || isAdjacentToColor);
           const isPlayerTile = Boolean(playerPlacements[tile.key]);
-          const canRemove =
-            isGenerator && !isInitialStateMode && isPlayerTile;
-          const canRetire =
-            isGenerator && isInitialStateMode && isPlayerTile;
+          const canRemove = isGenerator && !isInitialStateMode && isPlayerTile;
+          const canRetire = isGenerator && isInitialStateMode && isPlayerTile;
           const showUnavailableNotice =
-            !isGenerator &&
-            isEmpty &&
-            hasAvailableColors &&
-            !isAdjacentToColor;
+            !isGenerator && isEmpty && hasAvailableColors && !isAdjacentToColor;
           const showInitialStateUnavailable =
             isGenerator && isInitialStateMode && isEmpty;
           const unavailableMessage = showInitialStateUnavailable
@@ -632,9 +703,7 @@ function BoardScreen({
             canRetire ? ', se puede retirar' : ''
           }${unavailableMessage ? ', no disponible' : ''}${
             mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''
-          }${
-            isInitialStateMode ? ', modo estado inicial activo' : ''
-          }`;
+          }${isInitialStateMode ? ', modo estado inicial activo' : ''}`;
           const positionStyle = {
             left: `calc(50% + ${(tile.column - BOARD_CENTER_INDEX) * 34 + (tile.row % 2 === 0 ? -17 : 0)}px)`,
             top: `calc(50% + ${(tile.row - BOARD_CENTER_INDEX) * 29}px)`,
