@@ -1,6 +1,7 @@
 {
   "id": "98ce234f-0e09-41c6-9bbe-27259383b8bc",
   "name": "7V-10C-puente",
+  "deployed": false,
   "originalSolution": {
     "-1,-2": "verde",
     "0,-2": "verde",

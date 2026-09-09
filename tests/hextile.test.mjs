@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -12,6 +13,8 @@ import {
   requirementIsMet,
   validatePlacements,
 } from '../lib/hextile.ts';
+
+const LEVELS_DIRECTORY = new URL('../niveles/', import.meta.url);
 
 test('genera una matriz de 15 por 15 con un único centro axial', () => {
   assert.equal(BOARD_TILES.length, 225);
@@ -124,12 +127,44 @@ test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', ()
   assert.deepEqual(getRemainingInventory(level.inventory, {}), { celeste: 4 });
 });
 
+test('Play coincide con los manifiestos marcados como desplegados', async () => {
+  const files = (await readdir(LEVELS_DIRECTORY, { recursive: true })).filter(
+    (file) => file.endsWith('.json'),
+  );
+  const manifests = await Promise.all(
+    files.map(async (file) =>
+      JSON.parse(await readFile(new URL(file, LEVELS_DIRECTORY), 'utf8')),
+    ),
+  );
+  const deployed = manifests
+    .filter((manifest) => manifest.deployed)
+    .sort((left, right) => left.playOrder - right.playOrder);
+
+  assert.deepEqual(
+    deployed.map((manifest) => manifest.playOrder),
+    [2, 3, 4],
+  );
+  assert.equal(LEVELS.length, deployed.length + 1);
+
+  for (const manifest of deployed) {
+    const level = LEVELS[manifest.playOrder - 1];
+    const solutionColors = new Set(Object.values(manifest.originalSolution));
+    const expectedInventory = Object.fromEntries(
+      Object.entries(manifest.initialHand).filter(([color]) =>
+        solutionColors.has(color),
+      ),
+    );
+
+    assert.equal(level.label, `Nivel ${manifest.playOrder}`);
+    assert.deepEqual(level.fixedPlacements, manifest.initialDistribution);
+    assert.deepEqual(level.inventory, expectedInventory);
+  }
+});
+
 test('cada nivel describe exactamente sus colores disponibles', () => {
   LEVELS.forEach((level) => {
     const availableColors = Object.keys(level.inventory).sort();
-    const describedColors = level.rules.colors
-      .map((rule) => rule.color)
-      .sort();
+    const describedColors = level.rules.colors.map((rule) => rule.color).sort();
 
     assert.equal(
       new Set(describedColors).size,

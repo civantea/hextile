@@ -1,6 +1,7 @@
 {
   "id": "3aba6b0f-96f8-4274-83b1-d5c324acf64b",
   "name": "12C-compacto",
+  "deployed": true,
   "originalSolution": {
     "0,-2": "celeste",
     "1,-2": "celeste",
@@ -27,5 +28,6 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  }
+  },
+  "playOrder": 2
 }

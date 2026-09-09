@@ -30,6 +30,7 @@ import {
   validatePlacements,
   type ColorId,
   type Coordinate,
+  type LevelDefinition,
   type Placements,
   type ValidationMarks,
 } from '@/lib/hextile';
@@ -56,9 +57,6 @@ declare global {
     };
   }
 }
-
-const LEVEL = LEVELS[0];
-const LEVEL_COLORS = Object.keys(LEVEL.inventory) as ColorId[];
 
 function useHashRoute() {
   const [hash, setHash] = useState('#/');
@@ -119,21 +117,26 @@ function parsePlacementInput(input: unknown) {
   });
 }
 
-function LevelScreen() {
+function LevelScreen({ level }: { level: LevelDefinition }) {
   const [playerPlacements, setPlayerPlacements] = useState<Placements>({});
   const [marks, setMarks] = useState<ValidationMarks>({});
   const [openTileKey, setOpenTileKey] = useState<string | null>(null);
   const playerPlacementsRef = useRef<Placements>({});
 
+  const levelColors = useMemo(
+    () => Object.keys(level.inventory) as ColorId[],
+    [level.inventory],
+  );
+
   const remaining = useMemo(
-    () => getRemainingInventory(LEVEL.inventory, playerPlacements),
-    [playerPlacements],
+    () => getRemainingInventory(level.inventory, playerPlacements),
+    [level.inventory, playerPlacements],
   );
   const placements = useMemo(
-    () => ({ ...LEVEL.fixedPlacements, ...playerPlacements }),
-    [playerPlacements],
+    () => ({ ...level.fixedPlacements, ...playerPlacements }),
+    [level.fixedPlacements, playerPlacements],
   );
-  const availableColors = LEVEL_COLORS.filter(
+  const availableColors = levelColors.filter(
     (color) => (remaining[color] ?? 0) > 0,
   );
 
@@ -143,9 +146,9 @@ function LevelScreen() {
       flushSync(() => {
         next = placeTiles(
           playerPlacementsRef.current,
-          LEVEL.inventory,
+          level.inventory,
           requested,
-          LEVEL.fixedPlacements,
+          level.fixedPlacements,
         );
         playerPlacementsRef.current = next;
         setPlayerPlacements(next);
@@ -154,17 +157,17 @@ function LevelScreen() {
       });
       return next;
     },
-    [],
+    [level.fixedPlacements, level.inventory],
   );
 
   const validateLevel = useCallback(() => {
     const nextMarks = validatePlacements({
-      ...LEVEL.fixedPlacements,
+      ...level.fixedPlacements,
       ...playerPlacementsRef.current,
     });
     flushSync(() => setMarks(nextMarks));
     return nextMarks;
-  }, []);
+  }, [level.fixedPlacements]);
 
   const resetLevel = useCallback(() => {
     flushSync(() => {
@@ -193,8 +196,7 @@ function LevelScreen() {
     register({
       name: 'place_level_tiles',
       title: 'Colocar piezas del nivel',
-      description:
-        'Coloca una o varias piezas en hexágonos blancos del Nivel 1 y actualiza el tablero visible.',
+      description: `Coloca una o varias piezas en hexágonos blancos de ${level.label} y actualiza el tablero visible.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -206,7 +208,7 @@ function LevelScreen() {
               properties: {
                 q: { type: 'integer' },
                 r: { type: 'integer' },
-                color: { type: 'string', enum: LEVEL_COLORS },
+                color: { type: 'string', enum: levelColors },
               },
               required: ['q', 'r', 'color'],
               additionalProperties: false,
@@ -222,7 +224,7 @@ function LevelScreen() {
         const next = applyTiles(requested);
         return {
           placed: requested.length,
-          remaining: getRemainingInventory(LEVEL.inventory, next),
+          remaining: getRemainingInventory(level.inventory, next),
         };
       },
     });
@@ -253,7 +255,7 @@ function LevelScreen() {
     register({
       name: 'reset_level',
       title: 'Reiniciar nivel',
-      description: 'Quita todas las piezas y marcas y restaura el Nivel 1.',
+      description: `Quita todas las piezas y marcas y restaura ${level.label}.`,
       inputSchema: {
         type: 'object',
         properties: {},
@@ -262,12 +264,19 @@ function LevelScreen() {
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute() {
         resetLevel();
-        return { reset: true, remaining: LEVEL.inventory };
+        return { reset: true, remaining: level.inventory };
       },
     });
 
     return () => lifecycle.abort();
-  }, [applyTiles, resetLevel, validateLevel]);
+  }, [
+    applyTiles,
+    level.inventory,
+    level.label,
+    levelColors,
+    resetLevel,
+    validateLevel,
+  ]);
 
   return (
     <main className="game-screen">
@@ -275,7 +284,7 @@ function LevelScreen() {
         <a href="#/" className="brand-link" aria-label="Volver a los niveles">
           HEXTILE
         </a>
-        <h1>{LEVEL.label}</h1>
+        <h1>{level.label}</h1>
       </header>
 
       <aside
@@ -284,7 +293,7 @@ function LevelScreen() {
       >
         <h2 id="general-rules-title">Reglamento general</h2>
         <ol className="rules-list">
-          {LEVEL.rules.general.map((rule) => (
+          {level.rules.general.map((rule) => (
             <li key={rule.text}>
               {rule.text}
               {rule.details ? (
@@ -309,7 +318,7 @@ function LevelScreen() {
         >
           <h2 id="color-rules-title">Reglamento de colores</h2>
           <ul className="color-rules-list">
-            {LEVEL.rules.colors.map((rule) => {
+            {level.rules.colors.map((rule) => {
               const definition = COLOR_DEFINITIONS[rule.color];
               return (
                 <li key={rule.color}>
@@ -333,7 +342,7 @@ function LevelScreen() {
         >
           <h2 id="inventory-title">Colores disponibles</h2>
           <div className="inventory-list">
-            {LEVEL_COLORS.map((color) => {
+            {levelColors.map((color) => {
               const definition = COLOR_DEFINITIONS[color];
               return (
                 <div className="inventory-item" key={color}>
@@ -357,14 +366,13 @@ function LevelScreen() {
       <div className="board-shell" aria-label="Tablero hexagonal de 15 por 15">
         {BOARD_TILES.map((tile) => {
           const color = placements[tile.key];
-          const isFixed = Boolean(LEVEL.fixedPlacements[tile.key]);
+          const isFixed = Boolean(level.fixedPlacements[tile.key]);
           const mark = marks[tile.key];
           const isEmpty = !color;
           const hasAvailableColors = availableColors.length > 0;
           const isAdjacentToColor =
             isEmpty && hasColoredNeighbor(tile, placements);
-          const canPlace =
-            isEmpty && hasAvailableColors && isAdjacentToColor;
+          const canPlace = isEmpty && hasAvailableColors && isAdjacentToColor;
           const showUnavailableNotice =
             isEmpty && hasAvailableColors && !isAdjacentToColor;
           const coordinate = `(${tile.q},${tile.r})`;
@@ -519,5 +527,14 @@ function LevelScreen() {
 
 export default function Home() {
   const hash = useHashRoute();
-  return hash === '#/nivel/1' ? <LevelScreen /> : <HomeScreen />;
+  const levelMatch = /^#\/nivel\/(\d+)$/.exec(hash);
+  const level = levelMatch
+    ? LEVELS.find((candidate) => candidate.id === Number(levelMatch[1]))
+    : undefined;
+
+  return level ? (
+    <LevelScreen key={`level-${level.id}`} level={level} />
+  ) : (
+    <HomeScreen />
+  );
 }

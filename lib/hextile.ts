@@ -96,6 +96,41 @@ export const COLOR_DEFINITIONS: Record<ColorId, ColorDefinition> = {
   },
 };
 
+export const GENERAL_RULES: GeneralRule[] = [
+  {
+    text: 'Elige un hexágono blanco y asígnale un color disponible.',
+  },
+  {
+    text: 'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
+  },
+  {
+    text: 'Consulta cuántas piezas quedan de cada color en la sección Colores disponibles.',
+  },
+  {
+    text: 'Usa todas las piezas: los contadores deben llegar a cero.',
+  },
+  {
+    text: 'Un hexágono coloreado ya no puede modificarse.',
+  },
+  {
+    text: 'Presiona Validar para revisar cada hexágono coloreado, tanto inicial como colocado por ti.',
+    details: ['✅ Cumple las reglas.', '❌ No cumple las reglas.'],
+  },
+  {
+    text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅ y no quedan colores disponibles.',
+  },
+  {
+    text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
+  },
+];
+
+const CELESTE_COLOR_RULES: LevelDefinition['rules']['colors'] = [
+  {
+    color: 'celeste',
+    text: 'Debe tener al menos tres vecinos coloreados al terminar el nivel.',
+  },
+];
+
 export const LEVELS: LevelDefinition[] = [
   {
     id: 1,
@@ -109,42 +144,58 @@ export const LEVELS: LevelDefinition[] = [
       '0,-1': 'celeste',
     },
     rules: {
-      general: [
-        {
-          text: 'Elige un hexágono blanco y asígnale un color disponible.',
-        },
-        {
-          text: 'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
-        },
-        {
-          text: 'Consulta cuántas piezas quedan de cada color en la sección Colores disponibles.',
-        },
-        {
-          text: 'Usa todas las piezas: los contadores deben llegar a cero.',
-        },
-        {
-          text: 'Un hexágono coloreado ya no puede modificarse.',
-        },
-        {
-          text: 'Presiona Validar para revisar cada hexágono coloreado, tanto inicial como colocado por ti.',
-          details: [
-            '✅ Cumple las reglas.',
-            '❌ No cumple las reglas.',
-          ],
-        },
-        {
-          text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅ y no quedan colores disponibles.',
-        },
-        {
-          text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
-        },
-      ],
-      colors: [
-        {
-          color: 'celeste',
-          text: 'Debe tener al menos tres vecinos coloreados al terminar el nivel.',
-        },
-      ],
+      general: GENERAL_RULES,
+      colors: CELESTE_COLOR_RULES,
+    },
+  },
+  {
+    id: 2,
+    label: 'Nivel 2',
+    inventory: {
+      celeste: 9,
+    },
+    fixedPlacements: {
+      '0,-2': 'celeste',
+      '2,-2': 'celeste',
+      '0,1': 'celeste',
+    },
+    rules: {
+      general: GENERAL_RULES,
+      colors: CELESTE_COLOR_RULES,
+    },
+  },
+  {
+    id: 3,
+    label: 'Nivel 3',
+    inventory: {
+      celeste: 7,
+    },
+    fixedPlacements: {
+      '0,-2': 'celeste',
+      '0,-1': 'celeste',
+      '-1,0': 'celeste',
+      '0,1': 'celeste',
+      '1,1': 'celeste',
+      '0,2': 'celeste',
+    },
+    rules: {
+      general: GENERAL_RULES,
+      colors: CELESTE_COLOR_RULES,
+    },
+  },
+  {
+    id: 4,
+    label: 'Nivel 4',
+    inventory: {
+      celeste: 10,
+    },
+    fixedPlacements: {
+      '0,-2': 'celeste',
+      '1,1': 'celeste',
+    },
+    rules: {
+      general: GENERAL_RULES,
+      colors: CELESTE_COLOR_RULES,
     },
   },
 ];
