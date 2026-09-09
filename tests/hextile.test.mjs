@@ -14,6 +14,7 @@ import {
   hasColoredNeighbor,
   placeTiles,
   placeUnrestrictedTiles,
+  removeUnrestrictedTile,
   requirementIsMet,
   validatePlacements,
 } from '../lib/hextile.ts';
@@ -183,6 +184,27 @@ test('el generador permite piezas aisladas y cuenta colores sin límite', () => 
       rojo: 2,
       celeste: 0,
     },
+  );
+});
+
+test('el generador permite borrar una pieza y actualiza su contador', () => {
+  const placed = placeUnrestrictedTiles(
+    {},
+    [{ coordinate: { q: 4, r: -4 }, color: 'rojo' }],
+  );
+  const removed = removeUnrestrictedTile(placed, { q: 4, r: -4 });
+
+  assert.deepEqual(removed, {});
+  assert.deepEqual(placed, { '4,-4': 'rojo' });
+  assert.equal(getPlacementCounts(['rojo'], removed).rojo, 0);
+  assert.equal(
+    GENERAL_RULES[4].text,
+    'Un hexágono coloreado ya no puede modificarse.',
+  );
+  assert.match(GENERATOR_GENERAL_RULES[4].text, /Borrar/);
+  assert.throws(
+    () => removeUnrestrictedTile(removed, { q: 4, r: -4 }),
+    /no tiene color/,
   );
 });
 

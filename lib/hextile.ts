@@ -144,7 +144,7 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     text: 'Los contadores registran cuántos hexágonos has usado de cada color.',
   },
   {
-    text: 'Un hexágono coloreado ya no puede modificarse.',
+    text: 'Para corregir una pieza, selecciona su hexágono y usa Borrar; el contador del color disminuirá.',
   },
   {
     text: 'Presiona Validar para revisar cada hexágono coloreado.',
@@ -326,6 +326,27 @@ export function placeUnrestrictedTiles(
     seen.add(key);
   });
 
+  return next;
+}
+
+export function removeUnrestrictedTile(
+  current: Placements,
+  coordinate: Coordinate,
+): Placements {
+  const key = coordinateKey(coordinate);
+  if (!BOARD_KEYS.has(key)) {
+    throw new Error(
+      `La coordenada (${coordinate.q},${coordinate.r}) no existe.`,
+    );
+  }
+  if (!current[key]) {
+    throw new Error(
+      `El hexágono (${coordinate.q},${coordinate.r}) no tiene color.`,
+    );
+  }
+
+  const next = { ...current };
+  delete next[key];
   return next;
 }
 

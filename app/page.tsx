@@ -32,6 +32,7 @@ import {
   isColorId,
   placeTiles,
   placeUnrestrictedTiles,
+  removeUnrestrictedTile,
   validatePlacements,
   type ColorId,
   type LevelDefinition,
@@ -240,6 +241,23 @@ function BoardScreen({
     flushSync(() => setMarks(nextMarks));
     return nextMarks;
   }, [level.fixedPlacements]);
+
+  const removeGeneratorTile = useCallback(
+    (coordinate: RequestedPlacement['coordinate']) => {
+      flushSync(() => {
+        const next = removeUnrestrictedTile(
+          playerPlacementsRef.current,
+          coordinate,
+        );
+        playerPlacementsRef.current = next;
+        setPlayerPlacements(next);
+        setMarks({});
+        setOpenTileKey(null);
+        setSaveStatus(null);
+      });
+    },
+    [],
+  );
 
   const resetLevel = useCallback(() => {
     flushSync(() => {
@@ -544,6 +562,7 @@ function BoardScreen({
             isEmpty &&
             hasAvailableColors &&
             (isGenerator || isAdjacentToColor);
+          const canRemove = isGenerator && Boolean(playerPlacements[tile.key]);
           const showUnavailableNotice =
             !isGenerator &&
             isEmpty &&
@@ -554,7 +573,9 @@ function BoardScreen({
           const feedback = mark ? (mark.valid ? 'correcto' : 'incorrecto') : '';
           const ariaLabel = `Hexágono ${coordinate}, ${definition?.label ?? 'blanco'}${
             isFixed ? ', fijo' : ''
-          }${showUnavailableNotice ? ', no disponible' : ''}${
+          }${canRemove ? ', se puede borrar' : ''}${
+            showUnavailableNotice ? ', no disponible' : ''
+          }${
             mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''
           }`;
           const positionStyle = {
@@ -625,6 +646,41 @@ function BoardScreen({
                         </DropdownMenuItem>
                       );
                     })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : canRemove ? (
+                <DropdownMenu
+                  modal={false}
+                  open={openTileKey === tile.key}
+                  onOpenChange={(open) =>
+                    setOpenTileKey(open ? tile.key : null)
+                  }
+                >
+                  <DropdownMenuTrigger
+                    className="hex-button"
+                    style={buttonStyle}
+                    aria-label={ariaLabel}
+                    onClick={() => setOpenTileKey(tile.key)}
+                    data-center={
+                      tile.q === 0 && tile.r === 0 ? 'true' : undefined
+                    }
+                  >
+                    {buttonContents}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="color-menu delete-menu"
+                    side="right"
+                    sideOffset={8}
+                    align="center"
+                  >
+                    <DropdownMenuItem
+                      className="color-menu-item delete-menu-item"
+                      onClick={() =>
+                        removeGeneratorTile({ q: tile.q, r: tile.r })
+                      }
+                    >
+                      Borrar
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : showUnavailableNotice ? (

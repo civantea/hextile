@@ -440,6 +440,20 @@ a:focus-visible {
   border-color: #dbe3ea;
 }
 
+.delete-menu {
+  width: 112px;
+}
+
+.delete-menu-item {
+  color: #fecaca;
+}
+
+.delete-menu-item:focus,
+.delete-menu-item[data-highlighted] {
+  background: #7f1d1d;
+  color: #ffffff;
+}
+
 .unavailable-menu {
   width: max-content;
   min-width: 246px;
