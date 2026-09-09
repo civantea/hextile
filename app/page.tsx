@@ -35,6 +35,7 @@ import {
   removeUnrestrictedTile,
   retireUnrestrictedTile,
   validatePlacements,
+  validationIsSuccessful,
   type ColorId,
   type LevelDefinition,
   type Placements,
@@ -67,6 +68,7 @@ declare global {
 }
 
 type ScreenMode = 'level' | 'generator';
+type BuildSessionState = 'new' | 'solution-validated';
 
 type SaveStatus = {
   tone: 'success' | 'error';
@@ -185,6 +187,8 @@ function BoardScreen({
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialStateMode, setIsInitialStateMode] = useState(false);
+  const [buildSessionState, setBuildSessionState] =
+    useState<BuildSessionState>('new');
   const [initialHandCounts, setInitialHandCounts] = useState<
     Partial<Record<ColorId, number>>
   >(() => getPlacementCounts(levelColors, {}));
@@ -227,6 +231,7 @@ function BoardScreen({
         setMarks({});
         setOpenTileKey(null);
         setSaveStatus(null);
+        if (isGenerator) setBuildSessionState('new');
       });
       return next;
     },
@@ -238,9 +243,16 @@ function BoardScreen({
       ...level.fixedPlacements,
       ...playerPlacementsRef.current,
     });
-    flushSync(() => setMarks(nextMarks));
+    flushSync(() => {
+      setMarks(nextMarks);
+      if (isGenerator) {
+        setBuildSessionState(
+          validationIsSuccessful(nextMarks) ? 'solution-validated' : 'new',
+        );
+      }
+    });
     return nextMarks;
-  }, [level.fixedPlacements]);
+  }, [isGenerator, level.fixedPlacements]);
 
   const removeGeneratorTile = useCallback(
     (coordinate: RequestedPlacement['coordinate']) => {
@@ -254,6 +266,7 @@ function BoardScreen({
         setMarks({});
         setOpenTileKey(null);
         setSaveStatus(null);
+        setBuildSessionState('new');
       });
     },
     [],
@@ -291,11 +304,14 @@ function BoardScreen({
       setPlayerPlacements({});
       setInitialHandCounts(getPlacementCounts(levelColors, {}));
       setIsInitialStateMode(false);
+      setBuildSessionState('new');
       setMarks({});
       setOpenTileKey(null);
       setSaveStatus(null);
     });
   }, [levelColors]);
+
+  const isSolutionValidated = buildSessionState === 'solution-validated';
 
   const saveSolution = useCallback(async () => {
     const currentPlacements = playerPlacementsRef.current;
@@ -815,58 +831,73 @@ function BoardScreen({
         })}
       </div>
 
-      <div className="game-actions">
+      <div className="game-controls">
         {isGenerator ? (
-          <>
-            <button
-              className="primary-action"
-              type="button"
-              onClick={validateLevel}
-            >
-              Validar
-            </button>
-            <button
-              className="primary-action"
-              type="button"
-              disabled={isSaving}
-              onClick={() => void saveSolution()}
-            >
-              {isSaving ? 'Guardando…' : 'Guardar solución'}
-            </button>
-            <button
-              className="secondary-action initial-state-action"
-              type="button"
-              aria-pressed={isInitialStateMode}
-              onClick={toggleInitialStateMode}
-            >
-              {isInitialStateMode ? 'Salir' : 'Estado inicial'}
-            </button>
-            <button
-              className="secondary-action"
-              type="button"
-              onClick={resetLevel}
-            >
-              Reiniciar
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="secondary-action"
-              type="button"
-              onClick={resetLevel}
-            >
-              Reiniciar
-            </button>
-            <button
-              className="primary-action"
-              type="button"
-              onClick={validateLevel}
-            >
-              Validar
-            </button>
-          </>
-        )}
+          <output
+            className="session-progress"
+            data-complete={isSolutionValidated ? 'true' : 'false'}
+            aria-live="polite"
+          >
+            <span className="session-progress-marker" aria-hidden="true">
+              {isSolutionValidated ? '✓' : ''}
+            </span>
+            Para avanzar debes validar una solución exitosa
+          </output>
+        ) : null}
+        <div className="game-actions">
+          {isGenerator ? (
+            <>
+              <button
+                className="primary-action"
+                type="button"
+                onClick={validateLevel}
+              >
+                Validar
+              </button>
+              <button
+                className="primary-action"
+                type="button"
+                disabled={!isSolutionValidated || isSaving}
+                onClick={() => void saveSolution()}
+              >
+                {isSaving ? 'Guardando…' : 'Guardar solución'}
+              </button>
+              <button
+                className="secondary-action initial-state-action"
+                type="button"
+                disabled
+                aria-pressed={isInitialStateMode}
+                onClick={toggleInitialStateMode}
+              >
+                {isInitialStateMode ? 'Salir' : 'Estado inicial'}
+              </button>
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={resetLevel}
+              >
+                Reiniciar
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={resetLevel}
+              >
+                Reiniciar
+              </button>
+              <button
+                className="primary-action"
+                type="button"
+                onClick={validateLevel}
+              >
+                Validar
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </main>
   );

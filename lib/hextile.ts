@@ -157,7 +157,7 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     details: ['✅ Cumple las reglas.', '❌ No cumple las reglas.'],
   },
   {
-    text: 'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
+    text: 'Guardar solución se habilita cuando validas y todos los hexágonos muestran ✅.',
   },
   {
     text: 'El botón Reiniciar borra todas las piezas, la Mano inicial y las marcas de validación.',
@@ -447,6 +447,11 @@ export function validatePlacements(placements: Placements): ValidationMarks {
     },
     {},
   );
+}
+
+export function validationIsSuccessful(marks: ValidationMarks) {
+  const results = Object.values(marks);
+  return results.length > 0 && results.every((mark) => mark.valid);
 }
 
 export function isColorId(value: unknown): value is ColorId {

@@ -537,14 +537,63 @@ a:focus-visible {
   border-radius: 3px;
 }
 
-.game-actions {
+.game-controls {
   position: absolute;
   z-index: 5;
   bottom: 28px;
   left: 50%;
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   transform: translateX(-50%);
+}
+
+.session-progress {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #6b7280;
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.2;
+  box-shadow: 0 3px 0 rgba(107, 114, 128, 0.35);
+}
+
+.session-progress-marker {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  place-items: center;
+  border: 2px solid #9ca3af;
+  border-radius: 5px;
+  background: #e5e7eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.session-progress[data-complete='true'] {
+  border-color: #16a34a;
+  color: #166534;
+  box-shadow: 0 3px 0 rgba(22, 163, 74, 0.3);
+}
+
+.session-progress[data-complete='true'] .session-progress-marker {
+  border-color: #15803d;
+  background: #16a34a;
+}
+
+.game-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .primary-action,
@@ -571,7 +620,7 @@ a:focus-visible {
 
 .primary-action:disabled,
 .secondary-action:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.68;
 }
 

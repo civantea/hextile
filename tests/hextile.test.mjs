@@ -18,6 +18,7 @@ import {
   retireUnrestrictedTile,
   requirementIsMet,
   validatePlacements,
+  validationIsSuccessful,
 } from '../lib/hextile.ts';
 
 test('genera una matriz de 15 por 15 con un único centro axial', () => {
@@ -70,6 +71,24 @@ test('cuenta vecinos no blancos sin importar su color', () => {
   };
   const marks = validatePlacements(placements);
   assert.deepEqual(marks['0,0'], { neighborCount: 2, valid: true });
+});
+
+test('una sesión nueva solo avanza con una validación no vacía y completamente correcta', () => {
+  assert.equal(validationIsSuccessful({}), false);
+  assert.equal(
+    validationIsSuccessful(
+      validatePlacements({
+        '0,0': 'verde',
+        '1,0': 'verde',
+        '0,1': 'verde',
+      }),
+    ),
+    true,
+  );
+  assert.equal(
+    validationIsSuccessful(validatePlacements({ '0,0': 'verde' })),
+    false,
+  );
 });
 
 test('descuenta inventario y rechaza coordenadas, colores o celdas inválidas', () => {
@@ -158,7 +177,7 @@ test('la solución de un nivel exige marcas verdes e inventario agotado', () => 
     GENERATOR_GENERAL_RULES.some(
       (rule) =>
         rule.text ===
-        'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
+        'Guardar solución se habilita cuando validas y todos los hexágonos muestran ✅.',
     ),
   );
 });
