@@ -23,6 +23,8 @@ import {
 
 const PLAYABLE_LEVEL_FIXTURE = {
   id: 1,
+  stage: 1,
+  levelNumber: 1,
   label: 'Nivel de prueba',
   inventory: { celeste: 4 },
   fixedPlacements: {

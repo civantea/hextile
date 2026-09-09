@@ -2,6 +2,8 @@
   "id": "29f54ff2-6e53-4530-a8a0-0697b93d04b2",
   "name": "6V-dona",
   "deployed": true,
+  "stage": 1,
+  "levelNumber": 5,
   "originalSolution": {
     "0,-1": "verde",
     "1,-1": "verde",
@@ -20,6 +22,5 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  },
-  "playOrder": 6
+  }
 }

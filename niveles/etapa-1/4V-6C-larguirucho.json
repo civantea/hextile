@@ -2,6 +2,8 @@
   "id": "58a776ef-f0e8-4bb9-b24e-c9b6fee25131",
   "name": "4V-6C-larguirucho",
   "deployed": true,
+  "stage": 1,
+  "levelNumber": 14,
   "originalSolution": {
     "1,-3": "verde",
     "0,-2": "celeste",
@@ -27,6 +29,5 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  },
-  "playOrder": 15
+  }
 }

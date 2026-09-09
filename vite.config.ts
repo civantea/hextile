@@ -20,8 +20,8 @@ import {
   createLevelManifest,
 } from './lib/level-schema';
 import {
-  getCompactPlayOrderAssignments,
-  getNextPlayOrder,
+  getCompactLevelNumberAssignments,
+  getNextLevelNumber,
   type LevelCatalogEntry,
 } from './lib/level-catalog';
 import { validatePlacements } from './lib/hextile';
@@ -39,11 +39,22 @@ const LEVEL_CATALOG_PATH = '/__hextile/levels';
 const MAX_REQUEST_SIZE = 128 * 1024;
 
 type StoredLevel = {
-  stage: string;
+  stageName: string;
   fileName: string;
   filePath: string;
   manifest: LevelManifest;
 };
+
+function stageNameToNumber(stageName: string) {
+  const match = /^etapa-(\d+)$/i.exec(stageName);
+  const stage = match ? Number(match[1]) : 0;
+  if (!Number.isInteger(stage) || stage < 1) {
+    throw new Error(
+      `La carpeta ${stageName} debe usar el formato etapa-{número}.`,
+    );
+  }
+  return stage;
+}
 
 const localBindingConfig = {
   main: 'vinext/server/fetch-handler',
@@ -95,16 +106,16 @@ async function listStageNames() {
   return entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
     .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right, 'es'));
+    .sort((left, right) => stageNameToNumber(left) - stageNameToNumber(right));
 }
 
-async function readStageLevels(stage: string): Promise<StoredLevel[]> {
+async function readStageLevels(stageName: string): Promise<StoredLevel[]> {
   const stages = await listStageNames();
-  if (!stages.includes(stage)) {
+  if (!stages.includes(stageName)) {
     throw new Error('La etapa seleccionada no existe.');
   }
 
-  const stageDirectory = resolve(process.cwd(), 'niveles', stage);
+  const stageDirectory = resolve(process.cwd(), 'niveles', stageName);
   const files = await readdir(stageDirectory, { withFileTypes: true });
   const jsonFiles = files
     .filter(
@@ -121,7 +132,7 @@ async function readStageLevels(stage: string): Promise<StoredLevel[]> {
       const manifest: unknown = JSON.parse(await readFile(filePath, 'utf8'));
       assertLevelManifestSchema(manifest, { requireComplete: true });
       return {
-        stage,
+        stageName,
         fileName: file.name,
         filePath,
         manifest,
@@ -136,17 +147,18 @@ async function readAllStageLevels() {
 }
 
 function toCatalogEntry({
-  stage,
+  stageName,
   fileName,
   manifest,
 }: StoredLevel): LevelCatalogEntry {
   return {
-    stage,
+    stageName,
+    stage: manifest.stage,
     fileName,
     id: manifest.id,
     name: manifest.name,
     deployed: manifest.deployed,
-    ...(manifest.playOrder ? { playOrder: manifest.playOrder } : {}),
+    levelNumber: manifest.levelNumber,
   };
 }
 
@@ -161,7 +173,7 @@ async function deployStoredLevel(input: unknown) {
 
   const allLevels = await readAllStageLevels();
   const target = allLevels.find(
-    (level) => level.stage === stage && level.manifest.id === id,
+    (level) => level.stageName === stage && level.manifest.id === id,
   );
   if (!target) {
     throw new Error('No se encontró el nivel seleccionado.');
@@ -170,12 +182,17 @@ async function deployStoredLevel(input: unknown) {
     throw new Error('El nivel seleccionado ya fue agregado a Play.');
   }
 
-  const playOrder = getNextPlayOrder(allLevels.map((level) => level.manifest));
+  const stageNumber = stageNameToNumber(stage);
+  const levelNumber = getNextLevelNumber(
+    allLevels.map((level) => level.manifest),
+    stageNumber,
+  );
   const manifest = createLevelManifest(
     {
       ...target.manifest,
       deployed: true,
-      playOrder,
+      stage: stageNumber,
+      levelNumber,
     },
     { requireComplete: true },
   );
@@ -199,7 +216,7 @@ async function undeployStoredLevel(input: unknown) {
 
   const allLevels = await readAllStageLevels();
   const target = allLevels.find(
-    (level) => level.stage === stage && level.manifest.id === id,
+    (level) => level.stageName === stage && level.manifest.id === id,
   );
   if (!target) {
     throw new Error('No se encontró el nivel seleccionado.');
@@ -208,18 +225,22 @@ async function undeployStoredLevel(input: unknown) {
     throw new Error('El nivel seleccionado ya no está en Play.');
   }
 
-  const removedManifestDraft = { ...target.manifest };
-  delete removedManifestDraft.playOrder;
+  const stageNumber = stageNameToNumber(stage);
   const removedManifest = createLevelManifest(
-    { ...removedManifestDraft, deployed: false },
+    {
+      ...target.manifest,
+      deployed: false,
+      stage: stageNumber,
+      levelNumber: null,
+    },
     { requireComplete: true },
   );
   const remainingManifests = allLevels
     .filter((level) => level.manifest.id !== target.manifest.id)
     .map((level) => level.manifest);
   const assignments = new Map(
-    getCompactPlayOrderAssignments(remainingManifests).map(
-      ({ id: manifestId, playOrder }) => [manifestId, playOrder],
+    getCompactLevelNumberAssignments(remainingManifests, stageNumber).map(
+      ({ id: manifestId, levelNumber }) => [manifestId, levelNumber],
     ),
   );
 
@@ -232,15 +253,17 @@ async function undeployStoredLevel(input: unknown) {
     ...allLevels
       .filter(
         (level) =>
-          level.manifest.id !== target.manifest.id && level.manifest.deployed,
+          level.manifest.id !== target.manifest.id &&
+          level.manifest.deployed &&
+          level.manifest.stage === stageNumber,
       )
       .map((level) => {
-        const playOrder = assignments.get(level.manifest.id);
-        if (!playOrder) {
+        const levelNumber = assignments.get(level.manifest.id);
+        if (!levelNumber) {
           throw new Error('No se pudo recalcular el orden de Play.');
         }
         const manifest = createLevelManifest(
-          { ...level.manifest, playOrder },
+          { ...level.manifest, levelNumber },
           { requireComplete: true },
         );
         return writeFile(
@@ -365,9 +388,12 @@ function levelManifestWriter(): Plugin {
                 new Set(
                   (await readAllStageLevels())
                     .filter((level) => level.manifest.deployed)
-                    .map((level) => level.stage),
+                    .map((level) => level.stageName),
                 ),
-              ).sort((left, right) => left.localeCompare(right, 'es'));
+              ).sort(
+                (left, right) =>
+                  stageNameToNumber(left) - stageNameToNumber(right),
+              );
               sendJson(response, 200, { stages });
               return;
             }
@@ -378,7 +404,8 @@ function levelManifestWriter(): Plugin {
                 .filter((manifest) => manifest.deployed)
                 .sort(
                   (left, right) =>
-                    (left.playOrder ?? 0) - (right.playOrder ?? 0),
+                    left.stage - right.stage ||
+                    (left.levelNumber ?? 0) - (right.levelNumber ?? 0),
                 );
               sendJson(response, 200, { levels: deployedLevels });
               return;

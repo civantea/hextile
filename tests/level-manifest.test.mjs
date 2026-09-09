@@ -14,8 +14,8 @@ import {
   createLevelManifest,
 } from '../lib/level-schema.ts';
 import {
-  getCompactPlayOrderAssignments,
-  getNextPlayOrder,
+  getCompactLevelNumberAssignments,
+  getNextLevelNumber,
   levelManifestToDefinition,
 } from '../lib/level-catalog.ts';
 
@@ -170,6 +170,8 @@ test('genera manifiestos nuevos desde el esquema con deployed en false', () => {
     id: TEST_LEVEL_ID,
     name: 'Nivel de esquema',
     deployed: false,
+    stage: 1,
+    levelNumber: null,
     originalSolution: { '0,0': 'celeste' },
   });
   assert.doesNotThrow(() => assertLevelManifestSchema(manifest));
@@ -191,6 +193,8 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
         id: TEST_LEVEL_ID,
         name: 'Estado incorrecto',
         deployed: 'false',
+        stage: 1,
+        levelNumber: null,
         originalSolution: { '0,0': 'celeste' },
       }),
     /boolean/,
@@ -201,9 +205,23 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
         id: TEST_LEVEL_ID,
         name: 'Sin posición',
         deployed: true,
+        stage: 1,
+        levelNumber: null,
         originalSolution: { '0,0': 'celeste' },
       }),
-    /playOrder/,
+    /integer/,
+  );
+  assert.throws(
+    () =>
+      assertLevelManifestSchema({
+        id: TEST_LEVEL_ID,
+        name: 'Posición sin despliegue',
+        deployed: false,
+        stage: 1,
+        levelNumber: 1,
+        originalSolution: { '0,0': 'celeste' },
+      }),
+    /null/,
   );
 });
 
@@ -241,6 +259,8 @@ test('el esquema exige el estado inicial antes de entregar un nivel completo', (
   );
 
   assert.equal(complete.deployed, false);
+  assert.equal(complete.stage, 1);
+  assert.equal(complete.levelNumber, null);
 });
 
 test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
@@ -249,7 +269,8 @@ test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
       id: TEST_LEVEL_ID,
       name: 'Nombre interno que no se muestra',
       deployed: true,
-      playOrder: 1,
+      stage: 2,
+      levelNumber: 1,
       originalSolution: {
         '0,0': 'celeste',
         '1,0': 'celeste',
@@ -273,6 +294,8 @@ test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
 
   const level = levelManifestToDefinition(manifest);
   assert.equal(level.id, 1);
+  assert.equal(level.stage, 2);
+  assert.equal(level.levelNumber, 1);
   assert.equal(level.label, 'Nivel 1');
   assert.deepEqual(level.fixedPlacements, manifest.initialDistribution);
   assert.deepEqual(level.inventory, { celeste: 1, verde: 0 });
@@ -282,24 +305,35 @@ test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
   );
 });
 
-test('calcula la primera posición sin reservar un nivel heredado', () => {
-  assert.equal(getNextPlayOrder([]), 1);
+test('calcula la siguiente posición solo dentro de la etapa indicada', () => {
+  assert.equal(getNextLevelNumber([], 1), 1);
   assert.equal(
-    getNextPlayOrder([{ playOrder: 3 }, { playOrder: 1 }, { deployed: false }]),
+    getNextLevelNumber(
+      [
+        { deployed: true, stage: 1, levelNumber: 3 },
+        { deployed: true, stage: 2, levelNumber: 8 },
+        { deployed: false, stage: 1, levelNumber: null },
+      ],
+      1,
+    ),
     4,
   );
 });
 
-test('compacta la numeración de Play después de quitar un nivel', () => {
+test('compacta la numeración sin modificar otras etapas', () => {
   assert.deepEqual(
-    getCompactPlayOrderAssignments([
-      { id: 'primero', deployed: true, playOrder: 2 },
-      { id: 'retirado', deployed: false },
-      { id: 'ultimo', deployed: true, playOrder: 4 },
-    ]),
+    getCompactLevelNumberAssignments(
+      [
+        { id: 'primero', deployed: true, stage: 1, levelNumber: 2 },
+        { id: 'retirado', deployed: false, stage: 1, levelNumber: null },
+        { id: 'ultimo', deployed: true, stage: 1, levelNumber: 4 },
+        { id: 'otra-etapa', deployed: true, stage: 2, levelNumber: 6 },
+      ],
+      1,
+    ),
     [
-      { id: 'primero', playOrder: 1 },
-      { id: 'ultimo', playOrder: 2 },
+      { id: 'primero', levelNumber: 1 },
+      { id: 'ultimo', levelNumber: 2 },
     ],
   );
 });
@@ -310,7 +344,7 @@ test('todos los niveles actuales cumplen el esquema de despliegue', async () => 
   );
 
   assert.ok(files.length > 0);
-  const deployedOrders = [];
+  const deployedNumbersByStage = new Map();
   for (const file of files) {
     const manifest = JSON.parse(
       await readFile(new URL(file, LEVELS_DIRECTORY), 'utf8'),
@@ -320,11 +354,23 @@ test('todos los niveles actuales cumplen el esquema de despliegue', async () => 
       () => assertLevelManifestSchema(manifest, { requireComplete: true }),
       file,
     );
-    if (manifest.deployed) deployedOrders.push(manifest.playOrder);
+    const stageFolder = /^etapa-(\d+)\//.exec(file);
+    if (stageFolder) {
+      assert.equal(manifest.stage, Number(stageFolder[1]), file);
+    }
+    if (manifest.deployed) {
+      const stageNumbers = deployedNumbersByStage.get(manifest.stage) ?? [];
+      stageNumbers.push(manifest.levelNumber);
+      deployedNumbersByStage.set(manifest.stage, stageNumbers);
+    } else {
+      assert.equal(manifest.levelNumber, null, file);
+    }
   }
-  deployedOrders.sort((left, right) => left - right);
-  assert.deepEqual(
-    deployedOrders,
-    Array.from({ length: deployedOrders.length }, (_, index) => index + 1),
-  );
+  for (const stageNumbers of deployedNumbersByStage.values()) {
+    stageNumbers.sort((left, right) => left - right);
+    assert.deepEqual(
+      stageNumbers,
+      Array.from({ length: stageNumbers.length }, (_, index) => index + 1),
+    );
+  }
 });

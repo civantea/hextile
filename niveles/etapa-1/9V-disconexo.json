@@ -2,6 +2,8 @@
   "id": "85f3478d-b49c-40bd-9e4e-342a8263be1c",
   "name": "9V-disconexo",
   "deployed": true,
+  "stage": 1,
+  "levelNumber": 10,
   "originalSolution": {
     "-2,-1": "verde",
     "-1,-1": "verde",
@@ -25,6 +27,5 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  },
-  "playOrder": 11
+  }
 }

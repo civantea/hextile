@@ -7,8 +7,13 @@ import {
   type LevelManifest,
 } from './level-manifest.ts';
 
-type LevelManifestDraft = Omit<LevelManifest, 'deployed'> & {
+type LevelManifestDraft = Omit<
+  LevelManifest,
+  'deployed' | 'stage' | 'levelNumber'
+> & {
   deployed?: boolean;
+  stage?: number;
+  levelNumber?: number | null;
 };
 
 type SchemaValidationOptions = {

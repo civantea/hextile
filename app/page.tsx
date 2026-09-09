@@ -103,10 +103,19 @@ const BUNDLED_LEVEL_MANIFESTS = Object.values(
   }),
 );
 
+function sortPlayableLevels(levels: LevelDefinition[]) {
+  return levels.sort(
+    (left, right) =>
+      left.stage - right.stage || left.levelNumber - right.levelNumber,
+  );
+}
+
 function getBundledPlayableLevels() {
-  return BUNDLED_LEVEL_MANIFESTS.filter((manifest) => manifest.deployed)
-    .map(levelManifestToDefinition)
-    .sort((left, right) => left.id - right.id);
+  return sortPlayableLevels(
+    BUNDLED_LEVEL_MANIFESTS.filter((manifest) => manifest.deployed).map(
+      levelManifestToDefinition,
+    ),
+  );
 }
 
 function useHashRoute() {
@@ -137,9 +146,9 @@ function usePlayableLevels() {
       };
       if (!response.ok || !Array.isArray(result.levels)) return;
 
-      const storedLevels = result.levels
-        .map(levelManifestToDefinition)
-        .sort((left, right) => left.id - right.id);
+      const storedLevels = sortPlayableLevels(
+        result.levels.map(levelManifestToDefinition),
+      );
       setLevels(storedLevels);
     } catch {
       setLevels(getBundledPlayableLevels());
@@ -177,6 +186,15 @@ function WelcomeScreen() {
 }
 
 function PlayScreen({ levels }: { levels: LevelDefinition[] }) {
+  const stageGroups = Array.from(
+    levels.reduce<Map<number, LevelDefinition[]>>((groups, level) => {
+      const stageLevels = groups.get(level.stage) ?? [];
+      stageLevels.push(level);
+      groups.set(level.stage, stageLevels);
+      return groups;
+    }, new Map()),
+  );
+
   return (
     <main className="home-screen play-screen">
       <a className="section-back-link" href="#/">
@@ -185,15 +203,22 @@ function PlayScreen({ levels }: { levels: LevelDefinition[] }) {
       <div className="home-panel">
         <h1 className="home-title">HEXTILE</h1>
         <nav aria-label="Niveles disponibles" className="level-list">
-          {levels.map((level) => (
-            <a
-              className="level-link"
-              href={`#/nivel/${level.id}`}
-              key={level.id}
-            >
-              <span>{level.label}</span>
-              <span aria-hidden="true">&#8594;</span>
-            </a>
+          {stageGroups.map(([stage, stageLevels]) => (
+            <section className="level-stage" key={stage}>
+              <h2 className="level-stage-heading">Etapa {stage}</h2>
+              <div className="level-grid">
+                {stageLevels.map((level) => (
+                  <a
+                    aria-label={`Etapa ${stage}, nivel ${level.levelNumber}`}
+                    className="level-link"
+                    href={`#/nivel/${stage}/${level.levelNumber}`}
+                    key={`${stage}-${level.levelNumber}`}
+                  >
+                    {level.levelNumber}
+                  </a>
+                ))}
+              </div>
+            </section>
           ))}
         </nav>
       </div>
@@ -329,7 +354,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
-          stage: pendingLevel.stage,
+          stage: pendingLevel.stageName,
           id: pendingLevel.id,
         }),
       });
@@ -1666,13 +1691,20 @@ export default function Home() {
     );
   }
 
-  const levelMatch = /^#\/nivel\/(\d+)$/.exec(hash);
+  const levelMatch = /^#\/nivel\/(\d+)\/(\d+)$/.exec(hash);
   const level = levelMatch
-    ? playableLevels.find((candidate) => candidate.id === Number(levelMatch[1]))
+    ? playableLevels.find(
+        (candidate) =>
+          candidate.stage === Number(levelMatch[1]) &&
+          candidate.levelNumber === Number(levelMatch[2]),
+      )
     : undefined;
 
   return level ? (
-    <BoardScreen key={`level-${level.id}`} level={level} />
+    <BoardScreen
+      key={`level-${level.stage}-${level.levelNumber}`}
+      level={level}
+    />
   ) : (
     <WelcomeScreen />
   );

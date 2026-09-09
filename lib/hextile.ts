@@ -45,6 +45,8 @@ export type GeneralRule = {
 
 export type LevelDefinition = {
   id: number;
+  stage: number;
+  levelNumber: number;
   label: string;
   inventory: Partial<Record<ColorId, number>>;
   fixedPlacements: Placements;
@@ -173,6 +175,8 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
 
 export const GENERATOR_TEMPLATE: LevelDefinition = {
   id: 0,
+  stage: 0,
+  levelNumber: 0,
   label: 'Generar nivel',
   inventory: {
     celeste: 0,

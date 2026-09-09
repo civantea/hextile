@@ -7,34 +7,44 @@ import {
 import type { LevelManifest } from './level-manifest.ts';
 
 export type LevelCatalogEntry = {
-  stage: string;
+  stageName: string;
+  stage: number;
   fileName: string;
   id: string;
   name: string;
   deployed: boolean;
-  playOrder?: number;
+  levelNumber: number | null;
 };
 
-export function getNextPlayOrder(manifests: readonly LevelManifest[]) {
+export function getNextLevelNumber(
+  manifests: readonly LevelManifest[],
+  stage: number,
+) {
   return (
-    Math.max(0, ...manifests.map((manifest) => manifest.playOrder ?? 0)) + 1
+    Math.max(
+      0,
+      ...manifests
+        .filter((manifest) => manifest.deployed && manifest.stage === stage)
+        .map((manifest) => manifest.levelNumber ?? 0),
+    ) + 1
   );
 }
 
-export function getCompactPlayOrderAssignments(
+export function getCompactLevelNumberAssignments(
   manifests: readonly LevelManifest[],
+  stage: number,
 ) {
   return manifests
-    .filter((manifest) => manifest.deployed)
+    .filter((manifest) => manifest.deployed && manifest.stage === stage)
     .sort(
       (left, right) =>
-        (left.playOrder ?? Number.MAX_SAFE_INTEGER) -
-          (right.playOrder ?? Number.MAX_SAFE_INTEGER) ||
+        (left.levelNumber ?? Number.MAX_SAFE_INTEGER) -
+          (right.levelNumber ?? Number.MAX_SAFE_INTEGER) ||
         left.id.localeCompare(right.id),
     )
     .map((manifest, index) => ({
       id: manifest.id,
-      playOrder: index + 1,
+      levelNumber: index + 1,
     }));
 }
 
@@ -43,7 +53,7 @@ export function levelManifestToDefinition(
 ): LevelDefinition {
   if (
     !manifest.deployed ||
-    !manifest.playOrder ||
+    manifest.levelNumber === null ||
     !manifest.initialDistribution ||
     !manifest.initialHand
   ) {
@@ -60,8 +70,10 @@ export function levelManifestToDefinition(
   });
 
   return {
-    id: manifest.playOrder,
-    label: `Nivel ${manifest.playOrder}`,
+    id: manifest.levelNumber,
+    stage: manifest.stage,
+    levelNumber: manifest.levelNumber,
+    label: `Nivel ${manifest.levelNumber}`,
     inventory,
     fixedPlacements: manifest.initialDistribution,
     rules: {

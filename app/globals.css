@@ -111,10 +111,8 @@ a:focus-visible {
 }
 
 .level-list {
-  display: grid;
+  display: block;
   min-height: 0;
-  align-content: start;
-  gap: 18px;
   margin-top: 72px;
 }
 
@@ -125,6 +123,7 @@ a:focus-visible {
 .play-screen .home-panel {
   display: flex;
   height: 86vh;
+  width: 620px;
   min-height: 0;
   flex-direction: column;
 }
@@ -137,6 +136,36 @@ a:focus-visible {
   padding: 0 12px 12px;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
+}
+
+.level-stage + .level-stage {
+  margin-top: 38px;
+}
+
+.level-stage-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 20px;
+  color: var(--muted-ink);
+  font-size: 18px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.level-stage-heading::after {
+  height: 2px;
+  flex: 1;
+  background: var(--line);
+  content: '';
+  opacity: 0.45;
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .level-link,
@@ -158,8 +187,11 @@ a:focus-visible {
 }
 
 .level-link {
-  justify-content: space-between;
+  min-height: 64px;
+  justify-content: center;
   width: 100%;
+  padding: 12px;
+  font-size: 21px;
 }
 
 .home-actions {

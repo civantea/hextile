@@ -2,6 +2,8 @@
   "id": "7df646b5-443b-43e3-a63c-c5f2bfc81332",
   "name": "9V-6V-moño",
   "deployed": true,
+  "stage": 1,
+  "levelNumber": 11,
   "originalSolution": {
     "-2,-2": "verde",
     "-1,-2": "verde",
@@ -32,6 +34,5 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  },
-  "playOrder": 12
+  }
 }
