@@ -1,0 +1,39 @@
+{
+  "id": "98ce234f-0e09-41c6-9bbe-27259383b8bc",
+  "name": "7V-10C-puente",
+  "originalSolution": {
+    "-1,-2": "verde",
+    "0,-2": "verde",
+    "1,-2": "verde",
+    "2,-2": "verde",
+    "3,-2": "verde",
+    "-2,-1": "celeste",
+    "3,-1": "celeste",
+    "-3,0": "celeste",
+    "-2,0": "celeste",
+    "2,0": "celeste",
+    "3,0": "celeste",
+    "-3,1": "celeste",
+    "-2,1": "celeste",
+    "-1,1": "verde",
+    "0,1": "verde",
+    "1,1": "celeste",
+    "2,1": "celeste"
+  },
+  "initialDistribution": {
+    "0,-2": "verde",
+    "2,-2": "verde",
+    "-2,0": "celeste",
+    "3,0": "celeste",
+    "0,1": "verde",
+    "1,1": "celeste"
+  },
+  "initialHand": {
+    "celeste": 7,
+    "verde": 4,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

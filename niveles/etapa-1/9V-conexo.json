@@ -1,0 +1,28 @@
+{
+  "id": "702dc4a5-d87e-4a2f-9b5b-0db9182df232",
+  "name": "9V-conexo",
+  "originalSolution": {
+    "0,-1": "verde",
+    "1,-1": "verde",
+    "-1,0": "verde",
+    "1,0": "verde",
+    "-2,1": "verde",
+    "1,1": "verde",
+    "-2,2": "verde",
+    "-1,2": "verde",
+    "0,2": "verde"
+  },
+  "initialDistribution": {
+    "-1,0": "verde",
+    "-2,1": "verde",
+    "1,1": "verde"
+  },
+  "initialHand": {
+    "celeste": 0,
+    "verde": 6,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}
