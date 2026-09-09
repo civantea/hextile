@@ -1,0 +1,25 @@
+{
+  "id": "6abc8092-0072-46b5-a308-e11a55f9eaf5",
+  "name": "3V-4C-pez",
+  "originalSolution": {
+    "0,-1": "verde",
+    "-1,0": "celeste",
+    "0,0": "celeste",
+    "-1,1": "celeste",
+    "0,1": "celeste",
+    "1,1": "verde",
+    "0,2": "verde"
+  },
+  "initialDistribution": {
+    "0,-1": "verde",
+    "0,2": "verde"
+  },
+  "initialHand": {
+    "celeste": 4,
+    "verde": 1,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

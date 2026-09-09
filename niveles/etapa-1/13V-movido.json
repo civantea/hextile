@@ -1,0 +1,33 @@
+{
+  "id": "dcec34fa-7ab9-4678-bd4e-76d3f65e6bdd",
+  "name": "13V-movido",
+  "originalSolution": {
+    "2,-3": "verde",
+    "3,-3": "verde",
+    "0,-2": "verde",
+    "1,-2": "verde",
+    "3,-2": "verde",
+    "-1,-1": "verde",
+    "2,-1": "verde",
+    "-2,0": "verde",
+    "2,0": "verde",
+    "-2,1": "verde",
+    "-1,1": "verde",
+    "0,1": "verde",
+    "1,1": "verde"
+  },
+  "initialDistribution": {
+    "1,-2": "verde",
+    "3,-2": "verde",
+    "2,-1": "verde",
+    "-2,1": "verde"
+  },
+  "initialHand": {
+    "celeste": 0,
+    "verde": 9,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

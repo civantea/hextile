@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { sites } from '@openai/sites-vite-plugin';
@@ -8,9 +8,12 @@ import vinext from 'vinext';
 import { defineConfig, type Plugin } from 'vite';
 import hostingConfig from './.openai/hosting.json';
 import {
+  initialStateMatchesOriginalSolution,
   levelNameToFilename,
+  parseLevelInitialStatePayload,
   parseLevelManifestPayload,
   type LevelManifest,
+  type LevelInitialStatePayload,
   type LevelManifestPayload,
 } from './lib/level-manifest';
 import { validatePlacements } from './lib/hextile';
@@ -83,13 +86,67 @@ async function writeLevelManifest({
   return { id, fileName };
 }
 
+async function completeLevelManifest({
+  id,
+  initialDistribution,
+  initialHand,
+}: LevelInitialStatePayload) {
+  const levelsDirectory = resolve(process.cwd(), 'niveles');
+  const files = await readdir(levelsDirectory, { withFileTypes: true });
+
+  for (const file of files) {
+    if (!file.isFile() || !file.name.endsWith('.json')) continue;
+
+    const filePath = resolve(levelsDirectory, file.name);
+    let stored: unknown;
+    try {
+      stored = JSON.parse(await readFile(filePath, 'utf8'));
+    } catch {
+      continue;
+    }
+
+    if (
+      !stored ||
+      typeof stored !== 'object' ||
+      (stored as { id?: unknown }).id !== id
+    ) {
+      continue;
+    }
+
+    const original = parseLevelManifestPayload(stored);
+    if (
+      !initialStateMatchesOriginalSolution(
+        original.originalSolution,
+        initialDistribution,
+        initialHand,
+      )
+    ) {
+      throw new Error(
+        'El estado inicial no corresponde con la solución original guardada.',
+      );
+    }
+
+    const manifest: LevelManifest = {
+      id,
+      name: original.name,
+      originalSolution: original.originalSolution,
+      initialDistribution,
+      initialHand,
+    };
+    await writeFile(filePath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    return { id, fileName: file.name };
+  }
+
+  throw new Error('No se encontró el archivo del nivel guardado.');
+}
+
 function levelManifestWriter(): Plugin {
   return {
     name: 'hextile-level-manifest-writer',
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use(SAVE_LEVEL_PATH, async (request, response) => {
-        if (request.method !== 'POST') {
+        if (request.method !== 'POST' && request.method !== 'PATCH') {
           sendJson(response, 405, { error: 'Método no permitido.' });
           return;
         }
@@ -106,18 +163,26 @@ function levelManifestWriter(): Plugin {
             }
           }
 
-          const payload = parseLevelManifestPayload(JSON.parse(body));
-          const validation = validatePlacements(payload.originalSolution);
-          if (Object.values(validation).some((mark) => !mark.valid)) {
-            sendJson(response, 422, {
-              error:
-                'No se puede guardar: la validación contiene uno o más ❌.',
-            });
+          const input = JSON.parse(body);
+          if (request.method === 'POST') {
+            const payload = parseLevelManifestPayload(input);
+            const validation = validatePlacements(payload.originalSolution);
+            if (Object.values(validation).some((mark) => !mark.valid)) {
+              sendJson(response, 422, {
+                error:
+                  'No se puede guardar: la validación contiene uno o más ❌.',
+              });
+              return;
+            }
+
+            const result = await writeLevelManifest(payload);
+            sendJson(response, 201, result);
             return;
           }
 
-          const result = await writeLevelManifest(payload);
-          sendJson(response, 201, result);
+          const payload = parseLevelInitialStatePayload(input);
+          const result = await completeLevelManifest(payload);
+          sendJson(response, 200, result);
         } catch (error) {
           sendJson(response, 400, {
             error:

@@ -46,7 +46,7 @@ import {
 import {
   MAX_LEVEL_NAME_LENGTH,
   normalizeLevelName,
-  placementsToOriginalSolution,
+  placementsToCoordinateMap,
 } from '@/lib/level-manifest';
 
 type ToolDefinition = {
@@ -201,6 +201,7 @@ function BoardScreen({
   const [openTileKey, setOpenTileKey] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingLevel, setIsSavingLevel] = useState(false);
   const [levelName, setLevelName] = useState('');
   const [levelNameError, setLevelNameError] = useState<string | null>(null);
   const [savedLevel, setSavedLevel] = useState<SavedLevelReference | null>(
@@ -427,7 +428,7 @@ function BoardScreen({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: normalizedName,
-          originalSolution: placementsToOriginalSolution(currentPlacements),
+          originalSolution: placementsToCoordinateMap(currentPlacements),
         }),
       });
       const result = (await response.json()) as {
@@ -460,6 +461,45 @@ function BoardScreen({
       setIsSaving(false);
     }
   }, [levelName]);
+
+  const saveGeneratedLevel = useCallback(async () => {
+    if (!savedLevel || !isInitialStateReady) return;
+
+    setIsSavingLevel(true);
+    setSaveStatus(null);
+    try {
+      const response = await fetch('/__hextile/save-level', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: savedLevel.id,
+          initialDistribution: placementsToCoordinateMap(
+            playerPlacementsRef.current,
+          ),
+          initialHand: initialHandCounts,
+        }),
+      });
+      const result = (await response.json()) as {
+        id?: string;
+        error?: string;
+      };
+      if (!response.ok || result.id !== savedLevel.id) {
+        throw new Error(result.error ?? 'No se pudo guardar el nivel.');
+      }
+
+      resetLevel();
+    } catch (error) {
+      setSaveStatus({
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo guardar el nivel.',
+      });
+    } finally {
+      setIsSavingLevel(false);
+    }
+  }, [initialHandCounts, isInitialStateReady, resetLevel, savedLevel]);
 
   useEffect(() => {
     const context = document.modelContext;
@@ -719,13 +759,13 @@ function BoardScreen({
         <section
           className="inventory-panel sidebar-card"
           aria-labelledby={
-            isGenerator ? 'initial-distribution-title' : 'inventory-title'
+            isGenerator ? 'control-count-title' : 'inventory-title'
           }
         >
           {isGenerator ? (
             <div className="generator-inventory-columns">
               <div className="generator-inventory-column">
-                <h2 id="initial-distribution-title">Distribución inicial</h2>
+                <h2 id="control-count-title">Cantidad de control</h2>
                 <ColorCountList colors={levelColors} counts={inventoryCounts} />
               </div>
               <div className="generator-inventory-column">
@@ -749,9 +789,10 @@ function BoardScreen({
             <button
               className="save-level-action"
               type="button"
-              disabled={!isInitialStateReady || !savedLevel}
+              disabled={!isInitialStateReady || !savedLevel || isSavingLevel}
+              onClick={() => void saveGeneratedLevel()}
             >
-              Guardar nivel
+              {isSavingLevel ? 'Guardando…' : 'Guardar nivel'}
             </button>
             {saveStatus ? (
               <p
@@ -1070,7 +1111,7 @@ function BoardScreen({
               <button
                 className="secondary-action initial-state-action"
                 type="button"
-                disabled={!isSolutionSaved || !savedLevel}
+                disabled={!isSolutionSaved || !savedLevel || isSavingLevel}
                 aria-pressed={isInitialStateMode}
                 onClick={toggleInitialStateMode}
               >

@@ -1,0 +1,23 @@
+{
+  "id": "29f54ff2-6e53-4530-a8a0-0697b93d04b2",
+  "name": "6V-dona",
+  "originalSolution": {
+    "0,-1": "verde",
+    "1,-1": "verde",
+    "-1,0": "verde",
+    "1,0": "verde",
+    "-1,1": "verde",
+    "0,1": "verde"
+  },
+  "initialDistribution": {
+    "0,-1": "verde"
+  },
+  "initialHand": {
+    "celeste": 0,
+    "verde": 5,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

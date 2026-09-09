@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  initialStateMatchesOriginalSolution,
   levelNameToFilename,
+  parseLevelInitialStatePayload,
   parseLevelManifestPayload,
-  placementsToOriginalSolution,
+  placementsToCoordinateMap,
 } from '../lib/level-manifest.ts';
 
 test('la solución original usa coordenadas como claves y colores como valores', () => {
@@ -12,7 +14,7 @@ test('la solución original usa coordenadas como claves y colores como valores',
     '0,0': 'celeste',
     '1,0': 'rojo',
   };
-  const originalSolution = placementsToOriginalSolution(placements);
+  const originalSolution = placementsToCoordinateMap(placements);
 
   assert.deepEqual(originalSolution, {
     '0,0': 'celeste',
@@ -67,5 +69,79 @@ test('rechaza nombres o soluciones originales inválidas', () => {
         originalSolution: { '0,0': 'rosa' },
       }),
     /color válido/,
+  );
+});
+
+test('prepara un estado inicial con distribución y mano por color', () => {
+  const payload = parseLevelInitialStatePayload({
+    id: 'nivel-uno',
+    initialDistribution: {
+      '0,0': 'verde',
+      '1,0': 'verde',
+    },
+    initialHand: {
+      celeste: 0,
+      verde: 1,
+      morado: 0,
+      azul: 0,
+      naranja: 0,
+      rojo: 0,
+    },
+  });
+
+  assert.deepEqual(payload, {
+    id: 'nivel-uno',
+    initialDistribution: {
+      '0,0': 'verde',
+      '1,0': 'verde',
+    },
+    initialHand: {
+      celeste: 0,
+      verde: 1,
+      morado: 0,
+      azul: 0,
+      naranja: 0,
+      rojo: 0,
+    },
+  });
+  assert.equal(
+    initialStateMatchesOriginalSolution(
+      {
+        '0,0': 'verde',
+        '1,0': 'verde',
+        '0,1': 'verde',
+      },
+      payload.initialDistribution,
+      payload.initialHand,
+    ),
+    true,
+  );
+});
+
+test('rechaza una mano vacía o un estado distinto de la solución original', () => {
+  assert.throws(
+    () =>
+      parseLevelInitialStatePayload({
+        id: 'nivel-uno',
+        initialDistribution: { '0,0': 'verde' },
+        initialHand: { verde: 0 },
+      }),
+    /al menos una pieza/,
+  );
+  assert.equal(
+    initialStateMatchesOriginalSolution(
+      { '0,0': 'verde', '1,0': 'verde' },
+      { '0,0': 'verde' },
+      { verde: 2 },
+    ),
+    false,
+  );
+  assert.equal(
+    initialStateMatchesOriginalSolution(
+      { '0,0': 'verde', '1,0': 'verde' },
+      { '0,1': 'verde' },
+      { verde: 1 },
+    ),
+    false,
   );
 });

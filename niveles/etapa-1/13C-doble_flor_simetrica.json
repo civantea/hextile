@@ -1,0 +1,35 @@
+{
+  "id": "620a24bc-5117-469c-84ae-fb25238e7d86",
+  "name": "doble flor simetrica",
+  "originalSolution": {
+    "0,-2": "celeste",
+    "1,-2": "celeste",
+    "-1,-1": "celeste",
+    "0,-1": "celeste",
+    "1,-1": "celeste",
+    "-1,0": "celeste",
+    "0,0": "celeste",
+    "1,0": "celeste",
+    "-1,1": "celeste",
+    "0,1": "celeste",
+    "1,1": "celeste",
+    "-1,2": "celeste",
+    "0,2": "celeste"
+  },
+  "initialDistribution": {
+    "0,-2": "celeste",
+    "0,-1": "celeste",
+    "-1,0": "celeste",
+    "0,1": "celeste",
+    "1,1": "celeste",
+    "0,2": "celeste"
+  },
+  "initialHand": {
+    "celeste": 7,
+    "verde": 0,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "7df646b5-443b-43e3-a63c-c5f2bfc81332",
+  "name": "9V-6V-moño",
+  "originalSolution": {
+    "-2,-2": "verde",
+    "-1,-2": "verde",
+    "3,-2": "verde",
+    "4,-2": "verde",
+    "-3,-1": "verde",
+    "-1,-1": "celeste",
+    "2,-1": "celeste",
+    "4,-1": "verde",
+    "-3,0": "verde",
+    "-2,0": "celeste",
+    "-1,0": "celeste",
+    "0,0": "verde",
+    "1,0": "celeste",
+    "2,0": "celeste",
+    "3,0": "verde"
+  },
+  "initialDistribution": {
+    "4,-2": "verde",
+    "-3,-1": "verde",
+    "-2,0": "celeste",
+    "3,0": "verde"
+  },
+  "initialHand": {
+    "celeste": 5,
+    "verde": 6,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

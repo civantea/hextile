@@ -1,0 +1,26 @@
+{
+  "id": "7d274a8c-ef1a-4081-bdb7-710df71a37a9",
+  "name": "7C-flor",
+  "originalSolution": {
+    "0,-1": "celeste",
+    "1,-1": "celeste",
+    "-1,0": "celeste",
+    "0,0": "celeste",
+    "1,0": "celeste",
+    "-1,1": "celeste",
+    "0,1": "celeste"
+  },
+  "initialDistribution": {
+    "0,-1": "celeste",
+    "0,0": "celeste",
+    "0,1": "celeste"
+  },
+  "initialHand": {
+    "celeste": 4,
+    "verde": 0,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}

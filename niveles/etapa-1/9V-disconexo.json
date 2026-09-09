@@ -1,0 +1,28 @@
+{
+  "id": "85f3478d-b49c-40bd-9e4e-342a8263be1c",
+  "name": "9V-disconexo",
+  "originalSolution": {
+    "-2,-1": "verde",
+    "-1,-1": "verde",
+    "1,-1": "verde",
+    "-2,0": "verde",
+    "0,0": "verde",
+    "1,0": "verde",
+    "-2,2": "verde",
+    "-1,2": "verde",
+    "-2,3": "verde"
+  },
+  "initialDistribution": {
+    "-1,-1": "verde",
+    "1,-1": "verde",
+    "-2,3": "verde"
+  },
+  "initialHand": {
+    "celeste": 0,
+    "verde": 6,
+    "morado": 0,
+    "azul": 0,
+    "naranja": 0,
+    "rojo": 0
+  }
+}
