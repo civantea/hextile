@@ -147,7 +147,7 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     text: 'Para corregir una pieza, selecciona su hexágono y usa Borrar; el contador del color disminuirá.',
   },
   {
-    text: 'Presiona Estado inicial para entrar a ese modo y Salir para volver; al salir se conservan Distribución inicial y Mano inicial. Mientras esté activo, los hexágonos blancos no están disponibles.',
+    text: 'Después de guardar la solución original, presiona Estado inicial para entrar a ese modo y Salir para volver; al salir se conservan Distribución inicial y Mano inicial. Mientras esté activo, los hexágonos blancos no están disponibles.',
   },
   {
     text: 'En el modo Estado inicial, selecciona una pieza coloreada y usa Retirar para moverla a Mano inicial.',
@@ -158,6 +158,9 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
   },
   {
     text: 'Tras una validación exitosa, Guardar solución se habilita. Escribe un nombre para registrar la solución original.',
+  },
+  {
+    text: 'Para completar el estado inicial, retira al menos una pieza hacia Mano inicial y presiona Salir. Puedes volver a Estado inicial para seguir editándolo.',
   },
   {
     text: 'El botón Reiniciar borra todas las piezas, la Mano inicial y las marcas de validación.',
@@ -306,6 +309,12 @@ export function getPlacementCounts(
     counts[color] = (counts[color] ?? 0) + 1;
   });
   return counts;
+}
+
+export function hasInitialHandPieces(
+  counts: Partial<Record<ColorId, number>>,
+): boolean {
+  return Object.values(counts).some((count) => (count ?? 0) > 0);
 }
 
 export function placeUnrestrictedTiles(

@@ -12,6 +12,7 @@ import {
   getPlacementCounts,
   getRemainingInventory,
   hasColoredNeighbor,
+  hasInitialHandPieces,
   placeTiles,
   placeUnrestrictedTiles,
   removeUnrestrictedTile,
@@ -238,12 +239,14 @@ test('el modo estado inicial retira piezas hacia la mano inicial', () => {
 
   assert.deepEqual(retired.placements, { '1,0': 'rojo' });
   assert.deepEqual(retired.hand, { celeste: 1, rojo: 0 });
+  assert.equal(hasInitialHandPieces(retired.hand), true);
+  assert.equal(hasInitialHandPieces({ celeste: 0, rojo: 0 }), false);
   assert.match(
     GENERATOR_GENERAL_RULES.map((rule) => rule.text).join(' '),
     /Estado inicial.*Retirar.*Mano inicial/,
   );
   const stateModeRule = GENERATOR_GENERAL_RULES.find((rule) =>
-    rule.text.startsWith('Presiona Estado inicial'),
+    rule.text.startsWith('Después de guardar la solución original'),
   );
   assert.match(stateModeRule?.text ?? '', /Salir/);
   assert.match(

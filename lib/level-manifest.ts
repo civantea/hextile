@@ -34,9 +34,12 @@ export function normalizeLevelName(input: unknown): string {
 }
 
 export function levelNameToFilename(name: string): string {
-  const filename = normalizeLevelName(name)
-    .normalize('NFC')
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+  const safeName = Array.from(
+    normalizeLevelName(name).normalize('NFC'),
+    (character) => (character.charCodeAt(0) < 32 ? '-' : character),
+  ).join('');
+  const filename = safeName
+    .replace(/[<>:"/\\|?*]/g, '-')
     .replace(/^\.+|\.+$/g, '')
     .trim()
     .slice(0, MAX_LEVEL_NAME_LENGTH)

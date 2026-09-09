@@ -29,6 +29,7 @@ import {
   getPlacementCounts,
   getRemainingInventory,
   hasColoredNeighbor,
+  hasInitialHandPieces,
   isColorId,
   placeTiles,
   placeUnrestrictedTiles,
@@ -72,8 +73,19 @@ declare global {
 }
 
 type ScreenMode = 'level' | 'generator';
-type BuildSessionState = 'new' | 'solution-validated' | 'solution-saved';
+type BuildSessionState =
+  | 'new'
+  | 'solution-validated'
+  | 'solution-saved'
+  | 'initial-state-editing'
+  | 'initial-state-ready';
 type RulesTab = 'general' | 'colors' | 'validate';
+
+type SavedLevelReference = {
+  id: string;
+  name: string;
+  fileName: string;
+};
 
 type SaveStatus = {
   tone: 'success' | 'error';
@@ -191,6 +203,9 @@ function BoardScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [levelName, setLevelName] = useState('');
   const [levelNameError, setLevelNameError] = useState<string | null>(null);
+  const [savedLevel, setSavedLevel] = useState<SavedLevelReference | null>(
+    null,
+  );
   const [isInitialStateMode, setIsInitialStateMode] = useState(false);
   const [activeRulesTab, setActiveRulesTab] = useState<RulesTab>('general');
   const [buildSessionState, setBuildSessionState] =
@@ -253,7 +268,9 @@ function BoardScreen({
       if (isGenerator) {
         setBuildSessionState((current) =>
           validationIsSuccessful(nextMarks)
-            ? current === 'solution-saved'
+            ? current === 'solution-saved' ||
+              current === 'initial-state-editing' ||
+              current === 'initial-state-ready'
               ? current
               : 'solution-validated'
             : 'new',
@@ -302,10 +319,19 @@ function BoardScreen({
 
   const toggleInitialStateMode = useCallback(() => {
     flushSync(() => {
-      setIsInitialStateMode((current) => !current);
+      if (isInitialStateMode) {
+        if (hasInitialHandPieces(initialHandCounts)) {
+          setBuildSessionState('initial-state-ready');
+        }
+      } else {
+        setBuildSessionState((current) =>
+          current === 'initial-state-ready' ? 'initial-state-editing' : current,
+        );
+      }
+      setIsInitialStateMode(!isInitialStateMode);
       setOpenTileKey(null);
     });
-  }, []);
+  }, [initialHandCounts, isInitialStateMode]);
 
   const resetLevel = useCallback(() => {
     flushSync(() => {
@@ -319,12 +345,19 @@ function BoardScreen({
       setSaveStatus(null);
       setLevelName('');
       setLevelNameError(null);
+      setSavedLevel(null);
       levelNameDialogRef.current?.close();
     });
   }, [levelColors]);
 
   const isSolutionValidated = buildSessionState !== 'new';
-  const isSolutionSaved = buildSessionState === 'solution-saved';
+  const isSolutionSaved =
+    buildSessionState === 'solution-saved' ||
+    buildSessionState === 'initial-state-editing' ||
+    buildSessionState === 'initial-state-ready';
+  const isInitialStateReady = buildSessionState === 'initial-state-ready';
+  const areSessionControlsLocked =
+    buildSessionState === 'initial-state-editing' || isInitialStateReady;
 
   const requestSolutionName = useCallback(() => {
     const currentPlacements = playerPlacementsRef.current;
@@ -406,6 +439,11 @@ function BoardScreen({
         throw new Error(result.error ?? 'No se pudo guardar la solución.');
       }
 
+      setSavedLevel({
+        id: result.id,
+        name: normalizedName,
+        fileName: result.fileName,
+      });
       setBuildSessionState('solution-saved');
       levelNameDialogRef.current?.close();
       setSaveStatus({
@@ -708,7 +746,11 @@ function BoardScreen({
 
         {isGenerator ? (
           <>
-            <button className="save-level-action" type="button" disabled>
+            <button
+              className="save-level-action"
+              type="button"
+              disabled={!isInitialStateReady || !savedLevel}
+            >
               Guardar nivel
             </button>
             {saveStatus ? (
@@ -735,11 +777,16 @@ function BoardScreen({
             isEmpty && hasColoredNeighbor(tile, placements);
           const canPlace =
             !isInitialStateMode &&
+            !isSolutionSaved &&
             isEmpty &&
             hasAvailableColors &&
             (isGenerator || isAdjacentToColor);
           const isPlayerTile = Boolean(playerPlacements[tile.key]);
-          const canRemove = isGenerator && !isInitialStateMode && isPlayerTile;
+          const canRemove =
+            isGenerator &&
+            !isInitialStateMode &&
+            !isSolutionSaved &&
+            isPlayerTile;
           const canRetire = isGenerator && isInitialStateMode && isPlayerTile;
           const showUnavailableNotice =
             !isGenerator && isEmpty && hasAvailableColors && !isAdjacentToColor;
@@ -959,26 +1006,46 @@ function BoardScreen({
       <div className="game-controls">
         {isGenerator ? (
           <div className="session-progress-list" aria-live="polite">
-            <p
-              className="session-progress"
-              data-complete={isSolutionValidated ? 'true' : 'false'}
-            >
-              <span className="session-progress-marker" aria-hidden="true">
-                {isSolutionValidated ? '✓' : ''}
-              </span>
-              Para avanzar debes validar una solución exitosa
-            </p>
-            {isSolutionValidated ? (
-              <p
-                className="session-progress"
-                data-complete={isSolutionSaved ? 'true' : 'false'}
-              >
-                <span className="session-progress-marker" aria-hidden="true">
-                  {isSolutionSaved ? '✓' : ''}
-                </span>
-                Guarda la solución original para continuar.
-              </p>
-            ) : null}
+            {isSolutionSaved ? (
+              <>
+                <p className="session-progress" data-complete="true">
+                  <span className="session-progress-marker" aria-hidden="true">
+                    ✓
+                  </span>
+                  Guarda la solución original para continuar.
+                </p>
+                <p
+                  className="session-progress"
+                  data-complete={isInitialStateReady ? 'true' : 'false'}
+                >
+                  <span className="session-progress-marker" aria-hidden="true">
+                    {isInitialStateReady ? '✓' : ''}
+                  </span>
+                  genera el estado inicial para continuar
+                </p>
+              </>
+            ) : (
+              <>
+                <p
+                  className="session-progress"
+                  data-complete={isSolutionValidated ? 'true' : 'false'}
+                >
+                  <span className="session-progress-marker" aria-hidden="true">
+                    {isSolutionValidated ? '✓' : ''}
+                  </span>
+                  Para avanzar debes validar una solución exitosa
+                </p>
+                {isSolutionValidated ? (
+                  <p className="session-progress" data-complete="false">
+                    <span
+                      className="session-progress-marker"
+                      aria-hidden="true"
+                    />
+                    Guarda la solución original para continuar.
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
         ) : null}
         <div className="game-actions">
@@ -987,6 +1054,7 @@ function BoardScreen({
               <button
                 className="primary-action"
                 type="button"
+                disabled={isSolutionSaved}
                 onClick={validateLevel}
               >
                 Validar
@@ -1002,7 +1070,7 @@ function BoardScreen({
               <button
                 className="secondary-action initial-state-action"
                 type="button"
-                disabled
+                disabled={!isSolutionSaved || !savedLevel}
                 aria-pressed={isInitialStateMode}
                 onClick={toggleInitialStateMode}
               >
@@ -1011,6 +1079,7 @@ function BoardScreen({
               <button
                 className="secondary-action"
                 type="button"
+                disabled={areSessionControlsLocked}
                 onClick={resetLevel}
               >
                 Reiniciar
