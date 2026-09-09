@@ -86,6 +86,11 @@ a:focus-visible {
   text-align: center;
 }
 
+.welcome-panel,
+.build-panel {
+  width: 520px;
+}
+
 .home-title {
   margin: 0;
   font-size: 64px;
@@ -99,10 +104,9 @@ a:focus-visible {
 }
 
 .level-link,
-.generator-link {
+.home-action {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   border: 2px solid var(--line);
   border-radius: 12px;
   background: var(--tile);
@@ -118,22 +122,65 @@ a:focus-visible {
 }
 
 .level-link {
+  justify-content: space-between;
   width: 100%;
 }
 
-.generator-link {
-  position: absolute;
-  top: calc(8vh + 136px);
-  right: 64px;
-  width: 210px;
+.home-actions {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 72px;
+}
+
+.home-action {
+  justify-content: center;
+  width: 220px;
+  min-height: 64px;
+  cursor: pointer;
+}
+
+.home-action-dark {
   background: var(--ink);
   color: white;
 }
 
 .level-link:hover,
-.generator-link:hover {
+.home-action:not(:disabled):hover {
   transform: translateY(2px);
   box-shadow: 0 5px 0 var(--line);
+}
+
+.home-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: 0 4px 0 var(--line);
+}
+
+.section-back-link {
+  position: absolute;
+  top: 32px;
+  left: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--tile);
+  color: var(--ink);
+  padding: 10px 15px;
+  font-size: 16px;
+  font-weight: 750;
+  text-decoration: none;
+  box-shadow: 0 5px 0 var(--line);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.section-back-link:hover {
+  transform: translateY(2px);
+  box-shadow: 0 3px 0 var(--line);
 }
 
 .game-heading {

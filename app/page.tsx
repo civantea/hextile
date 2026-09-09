@@ -103,9 +103,30 @@ function useHashRoute() {
   return hash;
 }
 
-function HomeScreen() {
+function WelcomeScreen() {
   return (
     <main className="home-screen">
+      <div className="home-panel welcome-panel">
+        <h1 className="home-title">HEXTILE</h1>
+        <nav aria-label="Modos de HEXTILE" className="home-actions">
+          <a className="home-action" href="#/play">
+            Play
+          </a>
+          <a className="home-action home-action-dark" href="#/build">
+            Build
+          </a>
+        </nav>
+      </div>
+    </main>
+  );
+}
+
+function PlayScreen() {
+  return (
+    <main className="home-screen">
+      <a className="section-back-link" href="#/">
+        <span aria-hidden="true">←</span> Inicio
+      </a>
       <div className="home-panel">
         <h1 className="home-title">HEXTILE</h1>
         <nav aria-label="Niveles disponibles" className="level-list">
@@ -121,10 +142,27 @@ function HomeScreen() {
           ))}
         </nav>
       </div>
-      <a className="generator-link" href="#/generar">
-        <span>Generar nivel</span>
-        <span aria-hidden="true">&#8594;</span>
+    </main>
+  );
+}
+
+function BuildScreen() {
+  return (
+    <main className="home-screen">
+      <a className="section-back-link" href="#/">
+        <span aria-hidden="true">←</span> Inicio
       </a>
+      <div className="home-panel build-panel">
+        <h1 className="home-title">HEXTILE</h1>
+        <nav aria-label="Herramientas de construcción" className="home-actions">
+          <a className="home-action home-action-dark" href="#/generar">
+            Generar nivel
+          </a>
+          <button className="home-action" type="button" disabled>
+            Agregar nivel
+          </button>
+        </nav>
+      </div>
     </main>
   );
 }
@@ -612,7 +650,15 @@ function BoardScreen({
   return (
     <main className="game-screen" data-mode={mode}>
       <header className="game-heading">
-        <a href="#/" className="brand-link" aria-label="Volver a los niveles">
+        <a
+          href={isGenerator ? '#/build' : '#/play'}
+          className="brand-link"
+          aria-label={
+            isGenerator
+              ? 'Volver a las herramientas de construcción'
+              : 'Volver a los niveles'
+          }
+        >
           HEXTILE
         </a>
         <h1>{level.label}</h1>
@@ -1254,6 +1300,14 @@ function BoardScreen({
 
 export default function Home() {
   const hash = useHashRoute();
+  if (hash === '#/play') {
+    return <PlayScreen />;
+  }
+
+  if (hash === '#/build') {
+    return <BuildScreen />;
+  }
+
   if (hash === '#/generar') {
     return (
       <BoardScreen
@@ -1272,6 +1326,6 @@ export default function Home() {
   return level ? (
     <BoardScreen key={`level-${level.id}`} level={level} />
   ) : (
-    <HomeScreen />
+    <WelcomeScreen />
   );
 }
