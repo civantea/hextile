@@ -1,9 +1,6 @@
 {
-  "id": "f5d1f49a-1536-4209-b167-f2e3014c133d",
+  "id": "c62aac97-a2e4-4204-a6d2-32263bbc3911",
   "name": "12C-dona",
-  "deployed": true,
-  "stage": 1,
-  "levelNumber": 4,
   "originalSolution": {
     "0,-2": "celeste",
     "1,-2": "celeste",
@@ -20,7 +17,7 @@
   },
   "initialDistribution": {
     "0,-2": "celeste",
-    "1,1": "celeste"
+    "0,2": "celeste"
   },
   "initialHand": {
     "celeste": 10,
@@ -29,5 +26,8 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  }
+  },
+  "deployed": true,
+  "stage": 1,
+  "levelNumber": 4
 }
