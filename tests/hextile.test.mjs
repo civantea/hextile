@@ -238,7 +238,7 @@ test('el modo estado inicial retira piezas hacia la mano inicial', () => {
   assert.match(stateModeRule?.text ?? '', /Salir/);
   assert.match(
     stateModeRule?.text ?? '',
-    /se conservan Colores seleccionados y Mano inicial/,
+    /se conservan Distribución inicial y Mano inicial/,
   );
 });
 

@@ -141,13 +141,13 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     text: 'No hay límite de piezas de ningún color.',
   },
   {
-    text: 'Colores seleccionados registra cuántas piezas de cada color permanecen en el tablero.',
+    text: 'Distribución inicial registra cuántas piezas de cada color permanecen en el tablero.',
   },
   {
     text: 'Para corregir una pieza, selecciona su hexágono y usa Borrar; el contador del color disminuirá.',
   },
   {
-    text: 'Presiona Estado inicial para entrar a ese modo y Salir para volver; al salir se conservan Colores seleccionados y Mano inicial. Mientras esté activo, los hexágonos blancos no están disponibles.',
+    text: 'Presiona Estado inicial para entrar a ese modo y Salir para volver; al salir se conservan Distribución inicial y Mano inicial. Mientras esté activo, los hexágonos blancos no están disponibles.',
   },
   {
     text: 'En el modo Estado inicial, selecciona una pieza coloreada y usa Retirar para moverla a Mano inicial.',

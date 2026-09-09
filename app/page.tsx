@@ -526,13 +526,13 @@ function BoardScreen({
         <section
           className="inventory-panel sidebar-card"
           aria-labelledby={
-            isGenerator ? 'selected-colors-title' : 'inventory-title'
+            isGenerator ? 'initial-distribution-title' : 'inventory-title'
           }
         >
           {isGenerator ? (
             <div className="generator-inventory-columns">
               <div className="generator-inventory-column">
-                <h2 id="selected-colors-title">Colores seleccionados</h2>
+                <h2 id="initial-distribution-title">Distribución inicial</h2>
                 <ColorCountList
                   colors={levelColors}
                   counts={inventoryCounts}
