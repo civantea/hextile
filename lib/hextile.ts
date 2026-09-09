@@ -137,6 +137,22 @@ export function coordinateKey({ q, r }: Coordinate) {
   return `${q},${r}`;
 }
 
+export function hasColoredNeighbor(
+  coordinate: Coordinate,
+  placements: Placements,
+) {
+  return AXIAL_NEIGHBOR_OFFSETS.some((offset) =>
+    Boolean(
+      placements[
+        coordinateKey({
+          q: coordinate.q + offset.q,
+          r: coordinate.r + offset.r,
+        })
+      ],
+    ),
+  );
+}
+
 export function offsetToAxial(row: number, column: number): Coordinate {
   const rawCenterQ = BOARD_CENTER_INDEX - Math.floor(BOARD_CENTER_INDEX / 2);
   return {
@@ -180,6 +196,7 @@ export function placeTiles(
   fixedPlacements: Placements = {},
 ): Placements {
   const next = { ...current };
+  const coloredPlacements = { ...fixedPlacements, ...current };
   const remaining = getRemainingInventory(inventory, current);
   const seen = new Set<string>();
 
@@ -201,8 +218,14 @@ export function placeTiles(
     if ((remaining[color] ?? 0) <= 0) {
       throw new Error(`No quedan piezas de color ${color}.`);
     }
+    if (!hasColoredNeighbor(coordinate, coloredPlacements)) {
+      throw new Error(
+        `El hexágono (${coordinate.q},${coordinate.r}) no está disponible; revisa el reglamento.`,
+      );
+    }
 
     next[key] = color;
+    coloredPlacements[key] = color;
     seen.add(key);
     remaining[color] = (remaining[color] ?? 0) - 1;
   });

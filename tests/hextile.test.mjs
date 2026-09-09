@@ -7,6 +7,7 @@ import {
   LEVELS,
   coordinateKey,
   getRemainingInventory,
+  hasColoredNeighbor,
   placeTiles,
   requirementIsMet,
   validatePlacements,
@@ -30,6 +31,16 @@ test('usa los seis desplazamientos axiales inmediatos', () => {
     { q: -1, r: 1 },
     { q: 0, r: 1 },
   ]);
+});
+
+test('reconoce únicamente vecinos coloreados que comparten un lado', () => {
+  const placements = { '0,0': 'celeste' };
+
+  AXIAL_NEIGHBOR_OFFSETS.forEach((coordinate) => {
+    assert.equal(hasColoredNeighbor(coordinate, placements), true);
+  });
+  assert.equal(hasColoredNeighbor({ q: 2, r: 0 }, placements), false);
+  assert.equal(hasColoredNeighbor({ q: 0, r: 2 }, placements), false);
 });
 
 test('aplica las reglas de vecinos de todos los colores', () => {
@@ -111,4 +122,35 @@ test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', ()
   });
   assert.deepEqual(level.inventory, { celeste: 4 });
   assert.deepEqual(getRemainingInventory(level.inventory, {}), { celeste: 4 });
+});
+
+test('solo permite colocar junto a un color y admite una cadena secuencial', () => {
+  const level = LEVELS[0];
+
+  assert.throws(
+    () =>
+      placeTiles(
+        {},
+        level.inventory,
+        [{ coordinate: { q: 5, r: 0 }, color: 'celeste' }],
+        level.fixedPlacements,
+      ),
+    /no está disponible; revisa el reglamento/,
+  );
+
+  assert.deepEqual(
+    placeTiles(
+      {},
+      level.inventory,
+      [
+        { coordinate: { q: 1, r: 0 }, color: 'celeste' },
+        { coordinate: { q: 2, r: 0 }, color: 'celeste' },
+      ],
+      level.fixedPlacements,
+    ),
+    {
+      '1,0': 'celeste',
+      '2,0': 'celeste',
+    },
+  );
 });

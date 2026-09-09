@@ -24,6 +24,7 @@ import {
   COLOR_DEFINITIONS,
   LEVELS,
   getRemainingInventory,
+  hasColoredNeighbor,
   isColorId,
   placeTiles,
   validatePlacements,
@@ -333,13 +334,22 @@ function LevelScreen() {
           const color = placements[tile.key];
           const isFixed = Boolean(LEVEL.fixedPlacements[tile.key]);
           const mark = marks[tile.key];
-          const canPlace = !color && availableColors.length > 0;
+          const isEmpty = !color;
+          const hasAvailableColors = availableColors.length > 0;
+          const isAdjacentToColor =
+            isEmpty && hasColoredNeighbor(tile, placements);
+          const canPlace =
+            isEmpty && hasAvailableColors && isAdjacentToColor;
+          const showUnavailableNotice =
+            isEmpty && hasAvailableColors && !isAdjacentToColor;
           const coordinate = `(${tile.q},${tile.r})`;
           const definition = color ? COLOR_DEFINITIONS[color] : undefined;
           const feedback = mark ? (mark.valid ? 'correcto' : 'incorrecto') : '';
           const ariaLabel = `Hexágono ${coordinate}, ${definition?.label ?? 'blanco'}${
             isFixed ? ', fijo' : ''
-          }${mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''}`;
+          }${showUnavailableNotice ? ', no disponible' : ''}${
+            mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''
+          }`;
           const positionStyle = {
             left: `calc(50% + ${(tile.column - BOARD_CENTER_INDEX) * 34 + (tile.row % 2 === 0 ? -17 : 0)}px)`,
             top: `calc(50% + ${(tile.row - BOARD_CENTER_INDEX) * 29}px)`,
@@ -401,6 +411,33 @@ function LevelScreen() {
                         </DropdownMenuItem>
                       );
                     })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : showUnavailableNotice ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="hex-button"
+                    style={buttonStyle}
+                    aria-label={ariaLabel}
+                    data-unavailable="true"
+                    data-center={
+                      tile.q === 0 && tile.r === 0 ? 'true' : undefined
+                    }
+                  >
+                    {buttonContents}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="unavailable-menu"
+                    side="right"
+                    sideOffset={8}
+                    align="center"
+                  >
+                    <DropdownMenuItem
+                      className="unavailable-menu-item"
+                      disabled
+                    >
+                      no disponible, revisa el reglamento
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
