@@ -557,12 +557,11 @@ function BoardScreen({
         {isGenerator ? (
           <>
             <button
-              className="save-solution-action"
+              className="save-level-action"
               type="button"
-              disabled={isSaving}
-              onClick={() => void saveSolution()}
+              disabled
             >
-              {isSaving ? 'Guardando…' : 'Guardar solución'}
+              Guardar nivel
             </button>
             {saveStatus ? (
               <p
@@ -817,26 +816,57 @@ function BoardScreen({
       </div>
 
       <div className="game-actions">
-        <button className="secondary-action" type="button" onClick={resetLevel}>
-          Reiniciar
-        </button>
-        <button
-          className="primary-action"
-          type="button"
-          onClick={validateLevel}
-        >
-          Validar
-        </button>
         {isGenerator ? (
-          <button
-            className="secondary-action initial-state-action"
-            type="button"
-            aria-pressed={isInitialStateMode}
-            onClick={toggleInitialStateMode}
-          >
-            {isInitialStateMode ? 'Salir' : 'Estado inicial'}
-          </button>
-        ) : null}
+          <>
+            <button
+              className="primary-action"
+              type="button"
+              onClick={validateLevel}
+            >
+              Validar
+            </button>
+            <button
+              className="primary-action"
+              type="button"
+              disabled={isSaving}
+              onClick={() => void saveSolution()}
+            >
+              {isSaving ? 'Guardando…' : 'Guardar solución'}
+            </button>
+            <button
+              className="secondary-action initial-state-action"
+              type="button"
+              aria-pressed={isInitialStateMode}
+              onClick={toggleInitialStateMode}
+            >
+              {isInitialStateMode ? 'Salir' : 'Estado inicial'}
+            </button>
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={resetLevel}
+            >
+              Reiniciar
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={resetLevel}
+            >
+              Reiniciar
+            </button>
+            <button
+              className="primary-action"
+              type="button"
+              onClick={validateLevel}
+            >
+              Validar
+            </button>
+          </>
+        )}
       </div>
     </main>
   );

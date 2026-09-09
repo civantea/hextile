@@ -488,28 +488,23 @@ a:focus-visible {
   opacity: 1;
 }
 
-.save-solution-action {
+.save-level-action {
   flex: none;
   min-height: 44px;
   border: 2px solid var(--line);
   border-radius: 9px;
-  background: var(--ink);
-  color: white;
+  background: #e5e7eb;
+  color: var(--muted-ink);
   padding: 0 18px;
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  box-shadow: 0 5px 0 var(--line);
-}
-
-.save-solution-action:hover:not(:disabled) {
-  transform: translateY(1px);
   box-shadow: 0 4px 0 var(--line);
 }
 
-.save-solution-action:disabled {
-  cursor: wait;
-  opacity: 0.68;
+.save-level-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.76;
 }
 
 .save-status {
@@ -574,18 +569,24 @@ a:focus-visible {
   color: var(--ink);
 }
 
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .initial-state-action[aria-pressed='true'] {
   background: #1d4ed8;
   color: #ffffff;
   box-shadow: inset 0 0 0 2px #bfdbfe;
 }
 
-.primary-action:hover,
-.secondary-action:hover {
+.primary-action:hover:not(:disabled),
+.secondary-action:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
-.primary-action:active,
-.secondary-action:active {
+.primary-action:active:not(:disabled),
+.secondary-action:active:not(:disabled) {
   transform: translateY(1px);
 }
