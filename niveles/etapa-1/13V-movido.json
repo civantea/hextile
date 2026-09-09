@@ -1,7 +1,7 @@
 {
   "id": "dcec34fa-7ab9-4678-bd4e-76d3f65e6bdd",
   "name": "13V-movido",
-  "deployed": false,
+  "deployed": true,
   "originalSolution": {
     "2,-3": "verde",
     "3,-3": "verde",
@@ -30,5 +30,6 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  }
+  },
+  "playOrder": 10
 }

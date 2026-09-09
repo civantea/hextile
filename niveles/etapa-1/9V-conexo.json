@@ -1,7 +1,7 @@
 {
   "id": "702dc4a5-d87e-4a2f-9b5b-0db9182df232",
   "name": "9V-conexo",
-  "deployed": false,
+  "deployed": true,
   "originalSolution": {
     "0,-1": "verde",
     "1,-1": "verde",
@@ -25,5 +25,6 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  }
+  },
+  "playOrder": 9
 }

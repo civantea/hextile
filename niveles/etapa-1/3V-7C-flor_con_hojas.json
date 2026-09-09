@@ -1,7 +1,7 @@
 {
   "id": "59a2bb43-d936-48de-ba4a-7be7f2e52fbf",
   "name": "3V-7C-flor_con_hojas",
-  "deployed": false,
+  "deployed": true,
   "originalSolution": {
     "1,-2": "verde",
     "0,-1": "celeste",
@@ -28,5 +28,6 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  }
+  },
+  "playOrder": 7
 }

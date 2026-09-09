@@ -178,7 +178,7 @@ function WelcomeScreen() {
 
 function PlayScreen({ levels }: { levels: LevelDefinition[] }) {
   return (
-    <main className="home-screen">
+    <main className="home-screen play-screen">
       <a className="section-back-link" href="#/">
         <span aria-hidden="true">←</span> Inicio
       </a>
