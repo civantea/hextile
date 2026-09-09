@@ -186,6 +186,34 @@ test('el generador permite piezas aisladas y cuenta colores sin límite', () => 
   );
 });
 
+test('el generador ordena sus colores y comienza sin estado inicial', () => {
+  const expectedOrder = [
+    'celeste',
+    'verde',
+    'morado',
+    'azul',
+    'naranja',
+    'rojo',
+  ];
+
+  assert.deepEqual(Object.keys(GENERATOR_TEMPLATE.inventory), expectedOrder);
+  assert.deepEqual(
+    GENERATOR_TEMPLATE.rules.colors.map((rule) => rule.color),
+    expectedOrder,
+  );
+  assert.deepEqual(
+    getPlacementCounts(expectedOrder, GENERATOR_TEMPLATE.fixedPlacements),
+    {
+      celeste: 0,
+      verde: 0,
+      morado: 0,
+      azul: 0,
+      naranja: 0,
+      rojo: 0,
+    },
+  );
+});
+
 test('solo permite colocar junto a un color y admite una cadena secuencial', () => {
   const level = LEVELS[0];
 

@@ -134,6 +134,34 @@ function parsePlacementInput(input: unknown) {
   });
 }
 
+function ColorCountList({
+  colors,
+  counts,
+}: {
+  colors: ColorId[];
+  counts: Partial<Record<ColorId, number>>;
+}) {
+  return (
+    <div className="inventory-list">
+      {colors.map((color) => {
+        const definition = COLOR_DEFINITIONS[color];
+        return (
+          <div className="inventory-item" key={color}>
+            <span
+              className="color-swatch"
+              style={{ backgroundColor: definition.cssColor }}
+              aria-hidden="true"
+            />
+            <span aria-label={`${definition.label}: ${counts[color] ?? 0}`}>
+              {counts[color] ?? 0}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BoardScreen({
   level,
   mode = 'level',
@@ -162,6 +190,10 @@ function BoardScreen({
         ? getPlacementCounts(levelColors, playerPlacements)
         : getRemainingInventory(level.inventory, playerPlacements),
     [isGenerator, level.inventory, levelColors, playerPlacements],
+  );
+  const initialStateCounts = useMemo(
+    () => getPlacementCounts(levelColors, level.fixedPlacements),
+    [level.fixedPlacements, levelColors],
   );
   const placements = useMemo(
     () => ({ ...level.fixedPlacements, ...playerPlacements }),
@@ -447,28 +479,33 @@ function BoardScreen({
 
         <section
           className="inventory-panel sidebar-card"
-          aria-labelledby="inventory-title"
+          aria-labelledby={
+            isGenerator ? 'selected-colors-title' : 'inventory-title'
+          }
         >
-          <h2 id="inventory-title">Colores disponibles</h2>
-          <div className="inventory-list">
-            {levelColors.map((color) => {
-              const definition = COLOR_DEFINITIONS[color];
-              return (
-                <div className="inventory-item" key={color}>
-                  <span
-                    className="color-swatch"
-                    style={{ backgroundColor: definition.cssColor }}
-                    aria-hidden="true"
-                  />
-                  <span
-                    aria-label={`${definition.label}: ${inventoryCounts[color] ?? 0}`}
-                  >
-                    {inventoryCounts[color] ?? 0}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {isGenerator ? (
+            <div className="generator-inventory-columns">
+              <div className="generator-inventory-column">
+                <h2 id="selected-colors-title">Colores seleccionados</h2>
+                <ColorCountList
+                  colors={levelColors}
+                  counts={inventoryCounts}
+                />
+              </div>
+              <div className="generator-inventory-column">
+                <h2>Estado inicial</h2>
+                <ColorCountList
+                  colors={levelColors}
+                  counts={initialStateCounts}
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 id="inventory-title">Colores disponibles</h2>
+              <ColorCountList colors={levelColors} counts={inventoryCounts} />
+            </>
+          )}
         </section>
 
         {isGenerator ? (

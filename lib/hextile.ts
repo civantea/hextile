@@ -185,19 +185,19 @@ export const GENERATOR_TEMPLATE: LevelDefinition = {
   id: 0,
   label: 'Generar nivel',
   inventory: {
-    azul: 0,
+    celeste: 0,
     verde: 0,
     morado: 0,
+    azul: 0,
     naranja: 0,
     rojo: 0,
-    celeste: 0,
   },
   fixedPlacements: {},
   rules: {
     colors: [
       {
-        color: 'azul',
-        text: 'Debe tener exactamente cuatro vecinos coloreados.',
+        color: 'celeste',
+        text: 'Debe tener al menos tres vecinos coloreados.',
       },
       {
         color: 'verde',
@@ -208,16 +208,16 @@ export const GENERATOR_TEMPLATE: LevelDefinition = {
         text: 'Debe tener exactamente tres vecinos coloreados.',
       },
       {
+        color: 'azul',
+        text: 'Debe tener exactamente cuatro vecinos coloreados.',
+      },
+      {
         color: 'naranja',
         text: 'Debe tener exactamente cinco vecinos coloreados.',
       },
       {
         color: 'rojo',
         text: 'Debe tener exactamente seis vecinos coloreados.',
-      },
-      {
-        color: 'celeste',
-        text: 'Debe tener al menos tres vecinos coloreados.',
       },
     ],
   },

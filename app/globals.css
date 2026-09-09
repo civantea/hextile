@@ -208,6 +208,28 @@ a:focus-visible {
   margin-top: 14px;
 }
 
+.generator-inventory-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.generator-inventory-column + .generator-inventory-column {
+  border-left: 1px solid rgba(17, 24, 39, 0.22);
+  padding-left: 16px;
+}
+
+.generator-inventory-column h2 {
+  min-height: 38px;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.generator-inventory-column .inventory-item {
+  grid-template-columns: 22px 24px;
+  gap: 8px;
+}
+
 .inventory-item {
   display: grid;
   grid-template-columns: 22px 32px;
