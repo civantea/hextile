@@ -17,6 +17,7 @@ import {
   getCompactLevelNumberAssignments,
   getNextLevelNumber,
   levelManifestToDefinition,
+  sortLevelCatalogEntries,
 } from '../lib/level-catalog.ts';
 
 const LEVELS_DIRECTORY = new URL('../niveles/', import.meta.url);
@@ -335,6 +336,38 @@ test('compacta la numeración sin modificar otras etapas', () => {
       { id: 'primero', levelNumber: 1 },
       { id: 'ultimo', levelNumber: 2 },
     ],
+  );
+});
+
+test('ordena catálogos desplegados por número y pendientes por nombre', () => {
+  const entries = [
+    {
+      stageName: 'etapa-1',
+      stage: 1,
+      fileName: 'Zeta.json',
+      id: 'zeta',
+      name: 'Zeta',
+      deployed: true,
+      levelNumber: 1,
+    },
+    {
+      stageName: 'etapa-1',
+      stage: 1,
+      fileName: 'Árbol.json',
+      id: 'arbol',
+      name: 'Árbol',
+      deployed: true,
+      levelNumber: 2,
+    },
+  ];
+
+  assert.deepEqual(
+    sortLevelCatalogEntries(entries, 'deployed').map((entry) => entry.id),
+    ['zeta', 'arbol'],
+  );
+  assert.deepEqual(
+    sortLevelCatalogEntries(entries, 'undeployed').map((entry) => entry.id),
+    ['arbol', 'zeta'],
   );
 });
 

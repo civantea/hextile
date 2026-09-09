@@ -16,6 +16,25 @@ export type LevelCatalogEntry = {
   levelNumber: number | null;
 };
 
+export function sortLevelCatalogEntries(
+  entries: readonly LevelCatalogEntry[],
+  view: 'deployed' | 'undeployed',
+) {
+  return [...entries].sort((left, right) => {
+    if (view === 'deployed') {
+      return (
+        (left.levelNumber ?? Number.MAX_SAFE_INTEGER) -
+          (right.levelNumber ?? Number.MAX_SAFE_INTEGER) ||
+        left.name.localeCompare(right.name, 'es', { sensitivity: 'base' })
+      );
+    }
+    return (
+      left.name.localeCompare(right.name, 'es', { sensitivity: 'base' }) ||
+      left.id.localeCompare(right.id)
+    );
+  });
+}
+
 export function getNextLevelNumber(
   manifests: readonly LevelManifest[],
   stage: number,

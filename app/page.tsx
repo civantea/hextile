@@ -270,7 +270,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         const response = await fetch(
           isRemoving
             ? `${LEVEL_CATALOG_PATH}?view=deployed-stages`
-            : LEVEL_CATALOG_PATH,
+            : `${LEVEL_CATALOG_PATH}?view=undeployed-stages`,
           {
             cache: 'no-store',
             signal: lifecycle.signal,
@@ -313,7 +313,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
       setError(null);
       try {
         const query = new URLSearchParams({ stage });
-        if (isRemoving) query.set('view', 'deployed');
+        query.set('view', isRemoving ? 'deployed' : 'undeployed');
         const response = await fetch(`${LEVEL_CATALOG_PATH}?${query}`, {
           cache: 'no-store',
         });
@@ -371,25 +371,17 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         );
       }
 
-      if (isRemoving) {
-        const remaining = levels.filter(
-          (level) => level.id !== result.level?.id,
-        );
-        setLevels(remaining);
-        if (remaining.length === 0) {
-          setStages((currentStages) =>
-            currentStages.filter((stage) => stage !== selectedStage),
-          );
-        }
-      } else {
-        setLevels((current) =>
-          current.map((level) =>
-            level.id === result.level?.id ? result.level : level,
-          ),
-        );
-      }
+      const remaining = levels.filter((level) => level.id !== result.level?.id);
+      setLevels(remaining);
       confirmationDialogRef.current?.close();
       setPendingLevel(null);
+      if (remaining.length === 0) {
+        setStages((currentStages) =>
+          currentStages.filter((stage) => stage !== selectedStage),
+        );
+      } else if (isRemoving) {
+        await openStage(result.level.stageName);
+      }
       window.dispatchEvent(new Event(LEVEL_CATALOG_CHANGED_EVENT));
     } catch (requestError) {
       setError(
@@ -402,7 +394,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
     } finally {
       setIsUpdating(false);
     }
-  }, [action, isRemoving, levels, pendingLevel, selectedStage]);
+  }, [action, isRemoving, levels, openStage, pendingLevel, selectedStage]);
 
   return (
     <main className="home-screen catalog-screen">
@@ -455,7 +447,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
             <p className="catalog-message">
               {isRemoving
                 ? 'Esta etapa no contiene niveles desplegados.'
-                : 'Esta etapa no contiene niveles.'}
+                : 'Esta etapa no contiene niveles pendientes.'}
             </p>
           ) : null}
           {!isLoading && !error && selectedStage
@@ -469,7 +461,10 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
                   disabled={isRemoving ? !level.deployed : level.deployed}
                   onClick={() => setPendingLevel(level)}
                 >
-                  <span>{level.name}</span>
+                  <span>
+                    {isRemoving ? `${level.levelNumber}. ` : ''}
+                    {level.name}
+                  </span>
                   <span>
                     {isRemoving
                       ? 'Desplegado'

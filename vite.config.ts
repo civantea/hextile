@@ -22,6 +22,7 @@ import {
 import {
   getCompactLevelNumberAssignments,
   getNextLevelNumber,
+  sortLevelCatalogEntries,
   type LevelCatalogEntry,
 } from './lib/level-catalog';
 import { validatePlacements } from './lib/hextile';
@@ -374,20 +375,30 @@ function levelManifestWriter(): Plugin {
             const stage = url.searchParams.get('stage');
             if (stage) {
               const stageLevels = await readStageLevels(stage);
-              const levels = stageLevels
-                .filter(
-                  (level) => view !== 'deployed' || level.manifest.deployed,
-                )
-                .map(toCatalogEntry);
+              const catalogView =
+                view === 'deployed' ? 'deployed' : 'undeployed';
+              const levels = sortLevelCatalogEntries(
+                stageLevels
+                  .filter((level) =>
+                    catalogView === 'deployed'
+                      ? level.manifest.deployed
+                      : !level.manifest.deployed,
+                  )
+                  .map(toCatalogEntry),
+                catalogView,
+              );
               sendJson(response, 200, { stage, levels });
               return;
             }
 
-            if (view === 'deployed-stages') {
+            if (view === 'deployed-stages' || view === 'undeployed-stages') {
+              const shouldBeDeployed = view === 'deployed-stages';
               const stages = Array.from(
                 new Set(
                   (await readAllStageLevels())
-                    .filter((level) => level.manifest.deployed)
+                    .filter(
+                      (level) => level.manifest.deployed === shouldBeDeployed,
+                    )
                     .map((level) => level.stageName),
                 ),
               ).sort(
