@@ -14,6 +14,7 @@ export type LevelManifest = {
   id: string;
   name: string;
   deployed: boolean;
+  playOrder?: number;
   originalSolution: Placements;
   initialDistribution?: Placements;
   initialHand?: InitialHand;

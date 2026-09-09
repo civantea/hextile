@@ -21,6 +21,11 @@
       "default": false,
       "description": "Indica si el nivel ya fue publicado para jugarse. Los niveles nuevos comienzan en false."
     },
+    "playOrder": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Posición estable del nivel dentro de Play. Se asigna al publicarlo."
+    },
     "originalSolution": {
       "$ref": "#/$defs/nonEmptyPlacements"
     },
@@ -35,6 +40,19 @@
     "initialDistribution": ["initialHand"],
     "initialHand": ["initialDistribution"]
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "deployed": { "const": true }
+        },
+        "required": ["deployed"]
+      },
+      "then": {
+        "required": ["playOrder"]
+      }
+    }
+  ],
   "$defs": {
     "color": {
       "type": "string",

@@ -45,7 +45,12 @@ import {
   MAX_LEVEL_NAME_LENGTH,
   normalizeLevelName,
   placementsToCoordinateMap,
+  type LevelManifest,
 } from '@/lib/level-manifest';
+import {
+  levelManifestToDefinition,
+  type LevelCatalogEntry,
+} from '@/lib/level-catalog';
 
 type ToolDefinition = {
   name: string;
@@ -90,6 +95,9 @@ type SaveStatus = {
   message: string;
 };
 
+const LEVEL_CATALOG_PATH = '/__hextile/levels';
+const LEVEL_CATALOG_CHANGED_EVENT = 'hextile-level-catalog-changed';
+
 function useHashRoute() {
   const [hash, setHash] = useState('#/');
 
@@ -101,6 +109,41 @@ function useHashRoute() {
   }, []);
 
   return hash;
+}
+
+function usePlayableLevels() {
+  const [levels, setLevels] = useState<LevelDefinition[]>(LEVELS);
+
+  const refreshLevels = useCallback(async () => {
+    try {
+      const response = await fetch(`${LEVEL_CATALOG_PATH}?deployed=true`, {
+        cache: 'no-store',
+      });
+      const result = (await response.json()) as {
+        levels?: LevelManifest[];
+      };
+      if (!response.ok || !Array.isArray(result.levels)) return;
+
+      const storedLevels = result.levels
+        .map(levelManifestToDefinition)
+        .filter((level) => level.id > LEVELS.length)
+        .sort((left, right) => left.id - right.id);
+      setLevels([...LEVELS, ...storedLevels]);
+    } catch {
+      setLevels(LEVELS);
+    }
+  }, []);
+
+  useEffect(() => {
+    const refreshTimer = window.setTimeout(() => void refreshLevels(), 0);
+    window.addEventListener(LEVEL_CATALOG_CHANGED_EVENT, refreshLevels);
+    return () => {
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener(LEVEL_CATALOG_CHANGED_EVENT, refreshLevels);
+    };
+  }, [refreshLevels]);
+
+  return levels;
 }
 
 function WelcomeScreen() {
@@ -121,7 +164,7 @@ function WelcomeScreen() {
   );
 }
 
-function PlayScreen() {
+function PlayScreen({ levels }: { levels: LevelDefinition[] }) {
   return (
     <main className="home-screen">
       <a className="section-back-link" href="#/">
@@ -130,7 +173,7 @@ function PlayScreen() {
       <div className="home-panel">
         <h1 className="home-title">HEXTILE</h1>
         <nav aria-label="Niveles disponibles" className="level-list">
-          {LEVELS.map((level) => (
+          {levels.map((level) => (
             <a
               className="level-link"
               href={`#/nivel/${level.id}`}
@@ -158,11 +201,241 @@ function BuildScreen() {
           <a className="home-action home-action-dark" href="#/generar">
             Generar nivel
           </a>
-          <button className="home-action" type="button" disabled>
+          <a className="home-action" href="#/agregar">
             Agregar nivel
-          </button>
+          </a>
         </nav>
       </div>
+    </main>
+  );
+}
+
+function AddLevelScreen() {
+  const [stages, setStages] = useState<string[]>([]);
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [levels, setLevels] = useState<LevelCatalogEntry[]>([]);
+  const [pendingLevel, setPendingLevel] = useState<LevelCatalogEntry | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const confirmationDialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const lifecycle = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(LEVEL_CATALOG_PATH, {
+          cache: 'no-store',
+          signal: lifecycle.signal,
+        });
+        const result = (await response.json()) as {
+          stages?: string[];
+          error?: string;
+        };
+        if (!response.ok || !Array.isArray(result.stages)) {
+          throw new Error(result.error ?? 'No se pudieron cargar las etapas.');
+        }
+        setStages(result.stages);
+      } catch (requestError) {
+        if (!lifecycle.signal.aborted) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : 'No se pudieron cargar las etapas.',
+          );
+        }
+      } finally {
+        if (!lifecycle.signal.aborted) setIsLoading(false);
+      }
+    })();
+    return () => lifecycle.abort();
+  }, []);
+
+  useEffect(() => {
+    if (pendingLevel && !confirmationDialogRef.current?.open) {
+      confirmationDialogRef.current?.showModal();
+    }
+  }, [pendingLevel]);
+
+  const openStage = useCallback(async (stage: string) => {
+    setSelectedStage(stage);
+    setLevels([]);
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${LEVEL_CATALOG_PATH}?stage=${encodeURIComponent(stage)}`,
+        { cache: 'no-store' },
+      );
+      const result = (await response.json()) as {
+        levels?: LevelCatalogEntry[];
+        error?: string;
+      };
+      if (!response.ok || !Array.isArray(result.levels)) {
+        throw new Error(result.error ?? 'No se pudieron cargar los niveles.');
+      }
+      setLevels(result.levels);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No se pudieron cargar los niveles.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const closeConfirmation = useCallback(() => {
+    confirmationDialogRef.current?.close();
+    setPendingLevel(null);
+    setError(null);
+  }, []);
+
+  const addPendingLevel = useCallback(async () => {
+    if (!pendingLevel || pendingLevel.deployed) return;
+    setIsAdding(true);
+    setError(null);
+    try {
+      const response = await fetch(LEVEL_CATALOG_PATH, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: pendingLevel.stage,
+          id: pendingLevel.id,
+        }),
+      });
+      const result = (await response.json()) as {
+        level?: LevelCatalogEntry;
+        error?: string;
+      };
+      if (!response.ok || !result.level) {
+        throw new Error(result.error ?? 'No se pudo agregar el nivel.');
+      }
+
+      setLevels((current) =>
+        current.map((level) =>
+          level.id === result.level?.id ? result.level : level,
+        ),
+      );
+      confirmationDialogRef.current?.close();
+      setPendingLevel(null);
+      window.dispatchEvent(new Event(LEVEL_CATALOG_CHANGED_EVENT));
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No se pudo agregar el nivel.',
+      );
+    } finally {
+      setIsAdding(false);
+    }
+  }, [pendingLevel]);
+
+  return (
+    <main className="home-screen catalog-screen">
+      <a className="section-back-link" href="#/build">
+        <span aria-hidden="true">←</span> Build
+      </a>
+      <section className="catalog-panel" aria-labelledby="catalog-title">
+        <p className="catalog-brand">HEXTILE</p>
+        <div className="catalog-heading">
+          {selectedStage ? (
+            <button
+              className="catalog-stage-back"
+              type="button"
+              onClick={() => {
+                setSelectedStage(null);
+                setLevels([]);
+                setError(null);
+              }}
+            >
+              ← Etapas
+            </button>
+          ) : null}
+          <h1 id="catalog-title">{selectedStage ?? 'Selecciona una etapa'}</h1>
+        </div>
+
+        <div className="catalog-list" aria-live="polite">
+          {isLoading ? <p className="catalog-message">Cargando…</p> : null}
+          {!isLoading && error ? (
+            <p className="catalog-message catalog-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {!isLoading && !error && !selectedStage && stages.length === 0 ? (
+            <p className="catalog-message">No hay etapas disponibles.</p>
+          ) : null}
+          {!isLoading && !error && !selectedStage
+            ? stages.map((stage) => (
+                <button
+                  className="catalog-entry catalog-stage-entry"
+                  type="button"
+                  key={stage}
+                  onClick={() => void openStage(stage)}
+                >
+                  <span>{stage}</span>
+                  <span aria-hidden="true">→</span>
+                </button>
+              ))
+            : null}
+          {!isLoading && !error && selectedStage && levels.length === 0 ? (
+            <p className="catalog-message">Esta etapa no contiene niveles.</p>
+          ) : null}
+          {!isLoading && !error && selectedStage
+            ? levels.map((level) => (
+                <button
+                  className="catalog-entry catalog-level-entry"
+                  type="button"
+                  key={level.id}
+                  data-deployed={level.deployed ? 'true' : 'false'}
+                  disabled={level.deployed}
+                  onClick={() => setPendingLevel(level)}
+                >
+                  <span>{level.name}</span>
+                  <span>{level.deployed ? 'Agregado' : 'Disponible'}</span>
+                </button>
+              ))
+            : null}
+        </div>
+      </section>
+
+      <dialog
+        className="add-level-dialog"
+        ref={confirmationDialogRef}
+        aria-labelledby="add-level-dialog-title"
+        onClose={() => setPendingLevel(null)}
+      >
+        <div className="add-level-dialog-content">
+          <h2 id="add-level-dialog-title">¿Quieres agregar el nivel?</h2>
+          <p>{pendingLevel?.name}</p>
+          {error ? (
+            <p className="catalog-dialog-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="add-level-dialog-actions">
+            <button
+              className="secondary-action"
+              type="button"
+              disabled={isAdding}
+              onClick={closeConfirmation}
+            >
+              Cancelar
+            </button>
+            <button
+              className="primary-action"
+              type="button"
+              disabled={isAdding}
+              onClick={() => void addPendingLevel()}
+            >
+              {isAdding ? 'Agregando…' : 'Agregar'}
+            </button>
+          </div>
+        </div>
+      </dialog>
     </main>
   );
 }
@@ -1300,12 +1573,17 @@ function BoardScreen({
 
 export default function Home() {
   const hash = useHashRoute();
+  const playableLevels = usePlayableLevels();
   if (hash === '#/play') {
-    return <PlayScreen />;
+    return <PlayScreen levels={playableLevels} />;
   }
 
   if (hash === '#/build') {
     return <BuildScreen />;
+  }
+
+  if (hash === '#/agregar') {
+    return <AddLevelScreen />;
   }
 
   if (hash === '#/generar') {
@@ -1320,7 +1598,7 @@ export default function Home() {
 
   const levelMatch = /^#\/nivel\/(\d+)$/.exec(hash);
   const level = levelMatch
-    ? LEVELS.find((candidate) => candidate.id === Number(levelMatch[1]))
+    ? playableLevels.find((candidate) => candidate.id === Number(levelMatch[1]))
     : undefined;
 
   return level ? (

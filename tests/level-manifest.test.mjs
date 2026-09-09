@@ -13,6 +13,10 @@ import {
   assertLevelManifestSchema,
   createLevelManifest,
 } from '../lib/level-schema.ts';
+import {
+  getNextPlayOrder,
+  levelManifestToDefinition,
+} from '../lib/level-catalog.ts';
 
 const LEVELS_DIRECTORY = new URL('../niveles/', import.meta.url);
 const TEST_LEVEL_ID = 'd94b7242-cf09-49f2-a4fc-334f53661c31';
@@ -190,6 +194,16 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
       }),
     /boolean/,
   );
+  assert.throws(
+    () =>
+      assertLevelManifestSchema({
+        id: TEST_LEVEL_ID,
+        name: 'Sin posición',
+        deployed: true,
+        originalSolution: { '0,0': 'celeste' },
+      }),
+    /playOrder/,
+  );
 });
 
 test('el esquema exige el estado inicial antes de entregar un nivel completo', () => {
@@ -228,7 +242,56 @@ test('el esquema exige el estado inicial antes de entregar un nivel completo', (
   assert.equal(complete.deployed, false);
 });
 
-test('todos los niveles actuales cumplen el esquema y declaran deployed false', async () => {
+test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
+  const manifest = createLevelManifest(
+    {
+      id: TEST_LEVEL_ID,
+      name: 'Nombre interno que no se muestra',
+      deployed: true,
+      playOrder: 2,
+      originalSolution: {
+        '0,0': 'celeste',
+        '1,0': 'celeste',
+        '0,1': 'verde',
+      },
+      initialDistribution: {
+        '0,0': 'celeste',
+        '0,1': 'verde',
+      },
+      initialHand: {
+        celeste: 1,
+        verde: 0,
+        morado: 0,
+        azul: 0,
+        naranja: 0,
+        rojo: 0,
+      },
+    },
+    { requireComplete: true },
+  );
+
+  const level = levelManifestToDefinition(manifest);
+  assert.equal(level.id, 2);
+  assert.equal(level.label, 'Nivel 2');
+  assert.deepEqual(level.fixedPlacements, manifest.initialDistribution);
+  assert.deepEqual(level.inventory, { celeste: 1, verde: 0 });
+  assert.deepEqual(
+    level.rules.colors.map((rule) => rule.color),
+    ['celeste', 'verde'],
+  );
+});
+
+test('calcula una posición nueva después de todos los niveles actuales', () => {
+  assert.equal(
+    getNextPlayOrder(
+      [{ playOrder: 4 }, { playOrder: 2 }, { deployed: false }],
+      1,
+    ),
+    5,
+  );
+});
+
+test('todos los niveles actuales cumplen el esquema de despliegue', async () => {
   const files = (await readdir(LEVELS_DIRECTORY, { recursive: true })).filter(
     (file) => file.endsWith('.json') && !file.endsWith('.schema.json'),
   );
@@ -238,7 +301,7 @@ test('todos los niveles actuales cumplen el esquema y declaran deployed false', 
     const manifest = JSON.parse(
       await readFile(new URL(file, LEVELS_DIRECTORY), 'utf8'),
     );
-    assert.equal(manifest.deployed, false, file);
+    assert.equal(typeof manifest.deployed, 'boolean', file);
     assert.doesNotThrow(
       () => assertLevelManifestSchema(manifest, { requireComplete: true }),
       file,
