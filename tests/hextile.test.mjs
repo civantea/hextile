@@ -4,6 +4,8 @@ import test from 'node:test';
 import {
   AXIAL_NEIGHBOR_OFFSETS,
   BOARD_TILES,
+  GENERAL_RULES,
+  GENERATOR_GENERAL_RULES,
   GENERATOR_TEMPLATE,
   LEVELS,
   coordinateKey,
@@ -145,6 +147,15 @@ test('cada nivel describe exactamente sus colores disponibles', () => {
       `${level.label} debe describir todos y solo sus colores disponibles`,
     );
   });
+});
+
+test('la solución de un nivel exige marcas verdes e inventario agotado', () => {
+  assert.match(GENERAL_RULES[6].text, /✅/);
+  assert.match(GENERAL_RULES[6].text, /no quedan colores disponibles/);
+  assert.equal(
+    GENERATOR_GENERAL_RULES[6].text,
+    'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
+  );
 });
 
 test('el generador permite piezas aisladas y cuenta colores sin límite', () => {
