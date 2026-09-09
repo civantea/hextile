@@ -1,0 +1,332 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+:root {
+  --paper: #f3f6f8;
+  --ink: #111827;
+  --muted-ink: #607080;
+  --line: #243242;
+  --tile: #ffffff;
+  --blue: #2563eb;
+  --green: #16a34a;
+  --purple: #7c3aed;
+  --orange: #f97316;
+  --red: #dc2626;
+  --cyan: #06b6d4;
+  --background: #f3f6f8;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #111827;
+  --primary-foreground: #ffffff;
+  --secondary: #e8edf1;
+  --secondary-foreground: #111827;
+  --muted: #e8edf1;
+  --muted-foreground: #607080;
+  --accent: #dfe7ed;
+  --accent-foreground: #111827;
+  --destructive: #dc2626;
+  --border: #cbd5df;
+  --input: #cbd5df;
+  --ring: #2563eb;
+  --radius: 0.4rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 1280px;
+  min-height: 720px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.34);
+  outline-offset: 4px;
+}
+
+.home-screen,
+.game-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-width: 1280px;
+  min-height: 720px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(36, 50, 66, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 50, 66, 0.035) 1px, transparent 1px),
+    var(--paper);
+  background-size: 28px 28px;
+}
+
+.home-screen {
+  display: grid;
+  place-items: start center;
+  padding-top: 8vh;
+}
+
+.home-panel {
+  width: 460px;
+  text-align: center;
+}
+
+.home-title {
+  margin: 0;
+  font-size: 64px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  line-height: 1;
+}
+
+.level-list {
+  margin-top: 72px;
+}
+
+.level-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--tile);
+  color: var(--ink);
+  padding: 18px 22px;
+  font-size: 18px;
+  font-weight: 750;
+  text-decoration: none;
+  box-shadow: 0 7px 0 var(--line);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.level-link:hover {
+  transform: translateY(2px);
+  box-shadow: 0 5px 0 var(--line);
+}
+
+.game-heading {
+  position: absolute;
+  z-index: 5;
+  top: 22px;
+  left: 50%;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.brand-link {
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+  text-decoration: none;
+}
+
+.game-heading h1 {
+  margin: 7px 0 0;
+  color: var(--muted-ink);
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.inventory {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 54px;
+  display: grid;
+  gap: 18px;
+  transform: translateY(-50%);
+}
+
+.inventory-item {
+  display: grid;
+  grid-template-columns: 22px 32px;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 2px 2px 0 rgba(17, 24, 39, 0.18);
+}
+
+.board-shell {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hex-position {
+  position: absolute;
+  width: 32px;
+  height: 38px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.hex-button {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 38px;
+  place-items: center;
+  overflow: visible;
+  border: 0;
+  background: var(--line);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    filter 100ms ease,
+    transform 100ms ease;
+}
+
+.hex-button::before {
+  position: absolute;
+  z-index: 0;
+  inset: 2px;
+  background: var(--tile-color);
+  clip-path: inherit;
+  content: '';
+}
+
+.hex-button:hover:not([aria-disabled='true']) {
+  filter: brightness(0.96) drop-shadow(0 2px 2px rgba(17, 24, 39, 0.18));
+  transform: translateY(-1px);
+}
+
+.hex-button:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.92));
+}
+
+.hex-button[aria-disabled='true'] {
+  cursor: default;
+}
+
+.hex-button[data-center='true'] {
+  filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.72));
+}
+
+.validation-emoji {
+  position: relative;
+  z-index: 1;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
+  font-size: 17px;
+  line-height: 1;
+  transform: translateY(1px);
+}
+
+.coordinate-tooltip {
+  position: absolute;
+  z-index: 80;
+  left: 50%;
+  bottom: calc(100% + 5px);
+  display: none;
+  min-width: max-content;
+  border-radius: 5px;
+  background: var(--ink);
+  color: white;
+  padding: 4px 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.hex-position:hover .coordinate-tooltip,
+.hex-position:focus-within .coordinate-tooltip {
+  display: block;
+}
+
+.color-menu {
+  width: 136px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 5px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.18);
+}
+
+.color-menu-item {
+  gap: 9px;
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.menu-swatch {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 3px;
+}
+
+.game-actions {
+  position: absolute;
+  z-index: 5;
+  bottom: 28px;
+  left: 50%;
+  display: flex;
+  gap: 12px;
+  transform: translateX(-50%);
+}
+
+.primary-action,
+.secondary-action {
+  min-width: 126px;
+  height: 42px;
+  border: 2px solid var(--line);
+  border-radius: 9px;
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.primary-action {
+  background: var(--ink);
+  color: white;
+}
+
+.secondary-action {
+  background: var(--tile);
+  color: var(--ink);
+}
+
+.primary-action:hover,
+.secondary-action:hover {
+  transform: translateY(-1px);
+}
+
+.primary-action:active,
+.secondary-action:active {
+  transform: translateY(1px);
+}
