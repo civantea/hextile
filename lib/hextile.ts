@@ -38,13 +38,18 @@ export type ColorDefinition = {
     | { kind: 'minimum'; count: number };
 };
 
+export type GeneralRule = {
+  text: string;
+  details?: string[];
+};
+
 export type LevelDefinition = {
   id: number;
   label: string;
   inventory: Partial<Record<ColorId, number>>;
   fixedPlacements: Placements;
   rules: {
-    general: string[];
+    general: GeneralRule[];
     colors: Array<{
       color: ColorId;
       text: string;
@@ -105,14 +110,34 @@ export const LEVELS: LevelDefinition[] = [
     },
     rules: {
       general: [
-        'Elige un hexágono blanco y asígnale un color disponible.',
-        'Un hexágono coloreado ya no puede modificarse.',
-        'Consulta a la izquierda cuántas piezas quedan de cada color.',
-        'Usa todas las piezas: los contadores deben llegar a cero.',
-        'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
-        'Presiona Validar. Cada hexágono coloreado, inicial o colocado por ti, mostrará ✅ si cumple las reglas.',
-        'Si aparece ❌, la solución es incorrecta. Reinicia y prueba otra distribución.',
-        'Reiniciar borra tus piezas, pero conserva los hexágonos iniciales.',
+        {
+          text: 'Elige un hexágono blanco y asígnale un color disponible.',
+        },
+        {
+          text: 'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
+        },
+        {
+          text: 'Consulta cuántas piezas quedan de cada color en la sección Colores disponibles.',
+        },
+        {
+          text: 'Usa todas las piezas: los contadores deben llegar a cero.',
+        },
+        {
+          text: 'Un hexágono coloreado ya no puede modificarse.',
+        },
+        {
+          text: 'Presiona Validar para revisar cada hexágono coloreado, tanto inicial como colocado por ti.',
+          details: [
+            '✅ Cumple las reglas.',
+            '❌ No cumple las reglas.',
+          ],
+        },
+        {
+          text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅.',
+        },
+        {
+          text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
+        },
       ],
       colors: [
         {

@@ -122,6 +122,7 @@ function parsePlacementInput(input: unknown) {
 function LevelScreen() {
   const [playerPlacements, setPlayerPlacements] = useState<Placements>({});
   const [marks, setMarks] = useState<ValidationMarks>({});
+  const [openTileKey, setOpenTileKey] = useState<string | null>(null);
   const playerPlacementsRef = useRef<Placements>({});
 
   const remaining = useMemo(
@@ -149,6 +150,7 @@ function LevelScreen() {
         playerPlacementsRef.current = next;
         setPlayerPlacements(next);
         setMarks({});
+        setOpenTileKey(null);
       });
       return next;
     },
@@ -169,6 +171,7 @@ function LevelScreen() {
       playerPlacementsRef.current = {};
       setPlayerPlacements({});
       setMarks({});
+      setOpenTileKey(null);
     });
   }, []);
 
@@ -275,40 +278,36 @@ function LevelScreen() {
         <h1>{LEVEL.label}</h1>
       </header>
 
-      <aside className="inventory" aria-label="Colores disponibles">
-        {LEVEL_COLORS.map((color) => {
-          const definition = COLOR_DEFINITIONS[color];
-          return (
-            <div className="inventory-item" key={color}>
-              <span
-                className="color-swatch"
-                style={{ backgroundColor: definition.cssColor }}
-                aria-hidden="true"
-              />
-              <span
-                aria-label={`${definition.label}: ${remaining[color] ?? 0}`}
-              >
-                {remaining[color] ?? 0}
-              </span>
-            </div>
-          );
-        })}
+      <aside
+        className="general-rules-panel sidebar-card"
+        aria-labelledby="general-rules-title"
+      >
+        <h2 id="general-rules-title">Reglamento general</h2>
+        <ol className="rules-list">
+          {LEVEL.rules.general.map((rule) => (
+            <li key={rule.text}>
+              {rule.text}
+              {rule.details ? (
+                <ul className="rule-details">
+                  {rule.details.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ol>
       </aside>
 
-      <aside className="rules-panel" aria-labelledby="rules-title">
-        <h2 id="rules-title">Reglamento</h2>
-
-        <section aria-labelledby="general-rules-title">
-          <h3 id="general-rules-title">Reglas generales</h3>
-          <ol className="rules-list">
-            {LEVEL.rules.general.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ol>
-        </section>
-
-        <section aria-labelledby="color-rules-title">
-          <h3 id="color-rules-title">Reglas de colores</h3>
+      <aside
+        className="level-sidebar"
+        aria-label="Reglamento de colores e inventario"
+      >
+        <section
+          className="color-rules-panel sidebar-card"
+          aria-labelledby="color-rules-title"
+        >
+          <h2 id="color-rules-title">Reglamento de colores</h2>
           <ul className="color-rules-list">
             {LEVEL.rules.colors.map((rule) => {
               const definition = COLOR_DEFINITIONS[rule.color];
@@ -326,6 +325,32 @@ function LevelScreen() {
               );
             })}
           </ul>
+        </section>
+
+        <section
+          className="inventory-panel sidebar-card"
+          aria-labelledby="inventory-title"
+        >
+          <h2 id="inventory-title">Colores disponibles</h2>
+          <div className="inventory-list">
+            {LEVEL_COLORS.map((color) => {
+              const definition = COLOR_DEFINITIONS[color];
+              return (
+                <div className="inventory-item" key={color}>
+                  <span
+                    className="color-swatch"
+                    style={{ backgroundColor: definition.cssColor }}
+                    aria-hidden="true"
+                  />
+                  <span
+                    aria-label={`${definition.label}: ${remaining[color] ?? 0}`}
+                  >
+                    {remaining[color] ?? 0}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </section>
       </aside>
 
@@ -367,11 +392,18 @@ function LevelScreen() {
           return (
             <div className="hex-position" key={tile.key} style={positionStyle}>
               {canPlace ? (
-                <DropdownMenu>
+                <DropdownMenu
+                  modal={false}
+                  open={openTileKey === tile.key}
+                  onOpenChange={(open) =>
+                    setOpenTileKey(open ? tile.key : null)
+                  }
+                >
                   <DropdownMenuTrigger
                     className="hex-button"
                     style={buttonStyle}
                     aria-label={ariaLabel}
+                    onClick={() => setOpenTileKey(tile.key)}
                     data-center={
                       tile.q === 0 && tile.r === 0 ? 'true' : undefined
                     }
@@ -414,11 +446,18 @@ function LevelScreen() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : showUnavailableNotice ? (
-                <DropdownMenu>
+                <DropdownMenu
+                  modal={false}
+                  open={openTileKey === tile.key}
+                  onOpenChange={(open) =>
+                    setOpenTileKey(open ? tile.key : null)
+                  }
+                >
                   <DropdownMenuTrigger
                     className="hex-button"
                     style={buttonStyle}
                     aria-label={ariaLabel}
+                    onClick={() => setOpenTileKey(tile.key)}
                     data-unavailable="true"
                     data-center={
                       tile.q === 0 && tile.r === 0 ? 'true' : undefined

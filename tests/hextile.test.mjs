@@ -124,6 +124,26 @@ test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', ()
   assert.deepEqual(getRemainingInventory(level.inventory, {}), { celeste: 4 });
 });
 
+test('cada nivel describe exactamente sus colores disponibles', () => {
+  LEVELS.forEach((level) => {
+    const availableColors = Object.keys(level.inventory).sort();
+    const describedColors = level.rules.colors
+      .map((rule) => rule.color)
+      .sort();
+
+    assert.equal(
+      new Set(describedColors).size,
+      describedColors.length,
+      `${level.label} no debe repetir colores en su reglamento`,
+    );
+    assert.deepEqual(
+      describedColors,
+      availableColors,
+      `${level.label} debe describir todos y solo sus colores disponibles`,
+    );
+  });
+});
+
 test('solo permite colocar junto a un color y admite una cadena secuencial', () => {
   const level = LEVELS[0];
 
