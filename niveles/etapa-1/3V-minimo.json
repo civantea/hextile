@@ -1,7 +1,9 @@
 {
   "id": "1a8487f3-54aa-4ed3-ab26-6b4fabc7ede7",
   "name": "minimo verde",
-  "deployed": false,
+  "deployed": true,
+  "stage": 1,
+  "levelNumber": 5,
   "originalSolution": {
     "0,-1": "verde",
     "1,-1": "verde",

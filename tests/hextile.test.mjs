@@ -5,7 +5,6 @@ import test from 'node:test';
 import {
   AXIAL_NEIGHBOR_OFFSETS,
   BOARD_TILES,
-  LEVELS,
   coordinateKey,
   getRemainingInventory,
   hasColoredNeighbor,
@@ -13,8 +12,24 @@ import {
   requirementIsMet,
   validatePlacements,
 } from '../lib/hextile.ts';
+import { levelManifestToDefinition } from '../lib/playable-level.ts';
 
 const LEVELS_DIRECTORY = new URL('../niveles/', import.meta.url);
+const levelFiles = (
+  await readdir(LEVELS_DIRECTORY, { recursive: true })
+).filter((file) => file.endsWith('.json'));
+const manifests = await Promise.all(
+  levelFiles.map(async (file) =>
+    JSON.parse(await readFile(new URL(file, LEVELS_DIRECTORY), 'utf8')),
+  ),
+);
+const LEVELS = manifests
+  .filter((manifest) => manifest.deployed)
+  .map(levelManifestToDefinition)
+  .sort(
+    (left, right) =>
+      left.stage - right.stage || left.levelNumber - right.levelNumber,
+  );
 
 test('genera una matriz de 15 por 15 con un único centro axial', () => {
   assert.equal(BOARD_TILES.length, 225);
@@ -128,26 +143,30 @@ test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', ()
 });
 
 test('Play coincide con los manifiestos marcados como desplegados', async () => {
-  const files = (await readdir(LEVELS_DIRECTORY, { recursive: true })).filter(
-    (file) => file.endsWith('.json'),
-  );
-  const manifests = await Promise.all(
-    files.map(async (file) =>
-      JSON.parse(await readFile(new URL(file, LEVELS_DIRECTORY), 'utf8')),
-    ),
-  );
   const deployed = manifests
     .filter((manifest) => manifest.deployed)
-    .sort((left, right) => left.playOrder - right.playOrder);
+    .sort(
+      (left, right) =>
+        left.stage - right.stage || left.levelNumber - right.levelNumber,
+    );
 
-  assert.deepEqual(
-    deployed.map((manifest) => manifest.playOrder),
-    [2, 3, 4],
-  );
-  assert.equal(LEVELS.length, deployed.length + 1);
+  assert.equal(LEVELS.length, deployed.length);
+
+  const stages = Map.groupBy(deployed, (manifest) => manifest.stage);
+  for (const stageLevels of stages.values()) {
+    assert.deepEqual(
+      stageLevels.map((manifest) => manifest.levelNumber),
+      Array.from({ length: stageLevels.length }, (_, index) => index + 1),
+    );
+  }
 
   for (const manifest of deployed) {
-    const level = LEVELS[manifest.playOrder - 1];
+    const level = LEVELS.find(
+      (candidate) =>
+        candidate.stage === manifest.stage &&
+        candidate.levelNumber === manifest.levelNumber,
+    );
+    assert.ok(level);
     const solutionColors = new Set(Object.values(manifest.originalSolution));
     const expectedInventory = Object.fromEntries(
       Object.entries(manifest.initialHand).filter(([color]) =>
@@ -155,7 +174,7 @@ test('Play coincide con los manifiestos marcados como desplegados', async () => 
       ),
     );
 
-    assert.equal(level.label, `Nivel ${manifest.playOrder}`);
+    assert.equal(level.label, `Nivel ${manifest.levelNumber}`);
     assert.deepEqual(level.fixedPlacements, manifest.initialDistribution);
     assert.deepEqual(level.inventory, expectedInventory);
   }

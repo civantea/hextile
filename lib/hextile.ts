@@ -45,6 +45,8 @@ export type GeneralRule = {
 
 export type LevelDefinition = {
   id: number;
+  stage: number;
+  levelNumber: number;
   label: string;
   inventory: Partial<Record<ColorId, number>>;
   fixedPlacements: Placements;
@@ -124,79 +126,30 @@ export const GENERAL_RULES: GeneralRule[] = [
   },
 ];
 
-const CELESTE_COLOR_RULES: LevelDefinition['rules']['colors'] = [
+export const COLOR_RULES: LevelDefinition['rules']['colors'] = [
   {
     color: 'celeste',
-    text: 'Debe tener al menos tres vecinos coloreados al terminar el nivel.',
-  },
-];
-
-export const LEVELS: LevelDefinition[] = [
-  {
-    id: 1,
-    label: 'Nivel 1',
-    inventory: {
-      celeste: 4,
-    },
-    fixedPlacements: {
-      '0,1': 'celeste',
-      '0,0': 'celeste',
-      '0,-1': 'celeste',
-    },
-    rules: {
-      general: GENERAL_RULES,
-      colors: CELESTE_COLOR_RULES,
-    },
+    text: 'Debe tener al menos tres vecinos coloreados.',
   },
   {
-    id: 2,
-    label: 'Nivel 2',
-    inventory: {
-      celeste: 9,
-    },
-    fixedPlacements: {
-      '0,-2': 'celeste',
-      '2,-2': 'celeste',
-      '0,1': 'celeste',
-    },
-    rules: {
-      general: GENERAL_RULES,
-      colors: CELESTE_COLOR_RULES,
-    },
+    color: 'verde',
+    text: 'Debe tener exactamente dos vecinos coloreados.',
   },
   {
-    id: 3,
-    label: 'Nivel 3',
-    inventory: {
-      celeste: 7,
-    },
-    fixedPlacements: {
-      '0,-2': 'celeste',
-      '0,-1': 'celeste',
-      '-1,0': 'celeste',
-      '0,1': 'celeste',
-      '1,1': 'celeste',
-      '0,2': 'celeste',
-    },
-    rules: {
-      general: GENERAL_RULES,
-      colors: CELESTE_COLOR_RULES,
-    },
+    color: 'morado',
+    text: 'Debe tener exactamente tres vecinos coloreados.',
   },
   {
-    id: 4,
-    label: 'Nivel 4',
-    inventory: {
-      celeste: 10,
-    },
-    fixedPlacements: {
-      '0,-2': 'celeste',
-      '1,1': 'celeste',
-    },
-    rules: {
-      general: GENERAL_RULES,
-      colors: CELESTE_COLOR_RULES,
-    },
+    color: 'azul',
+    text: 'Debe tener exactamente cuatro vecinos coloreados.',
+  },
+  {
+    color: 'naranja',
+    text: 'Debe tener exactamente cinco vecinos coloreados.',
+  },
+  {
+    color: 'rojo',
+    text: 'Debe tener exactamente seis vecinos coloreados.',
   },
 ];
 

@@ -2,6 +2,8 @@
   "id": "620a24bc-5117-469c-84ae-fb25238e7d86",
   "name": "doble flor simetrica",
   "deployed": true,
+  "stage": 1,
+  "levelNumber": 2,
   "originalSolution": {
     "0,-2": "celeste",
     "1,-2": "celeste",
@@ -32,6 +34,5 @@
     "azul": 0,
     "naranja": 0,
     "rojo": 0
-  },
-  "playOrder": 3
+  }
 }

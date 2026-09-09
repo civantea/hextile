@@ -22,7 +22,6 @@ import {
   BOARD_CENTER_INDEX,
   BOARD_TILES,
   COLOR_DEFINITIONS,
-  LEVELS,
   getRemainingInventory,
   hasColoredNeighbor,
   isColorId,
@@ -34,6 +33,10 @@ import {
   type Placements,
   type ValidationMarks,
 } from '@/lib/hextile';
+import {
+  levelManifestToDefinition,
+  type PlayableLevelManifest,
+} from '@/lib/playable-level';
 
 type ToolDefinition = {
   name: string;
@@ -58,6 +61,19 @@ declare global {
   }
 }
 
+const LEVELS = Object.values(
+  import.meta.glob<PlayableLevelManifest>('../niveles/etapa-*/*.json', {
+    eager: true,
+    import: 'default',
+  }),
+)
+  .filter((manifest) => manifest.deployed)
+  .map(levelManifestToDefinition)
+  .sort(
+    (left, right) =>
+      left.stage - right.stage || left.levelNumber - right.levelNumber,
+  );
+
 function useHashRoute() {
   const [hash, setHash] = useState('#/');
 
@@ -72,20 +88,36 @@ function useHashRoute() {
 }
 
 function HomeScreen() {
+  const stageGroups = Array.from(
+    LEVELS.reduce<Map<number, LevelDefinition[]>>((groups, level) => {
+      const stageLevels = groups.get(level.stage) ?? [];
+      stageLevels.push(level);
+      groups.set(level.stage, stageLevels);
+      return groups;
+    }, new Map()),
+  );
+
   return (
-    <main className="home-screen">
+    <main className="home-screen play-screen">
       <div className="home-panel">
         <h1 className="home-title">HEXTILE</h1>
         <nav aria-label="Niveles disponibles" className="level-list">
-          {LEVELS.map((level) => (
-            <a
-              className="level-link"
-              href={`#/nivel/${level.id}`}
-              key={level.id}
-            >
-              <span>{level.label}</span>
-              <span aria-hidden="true">&#8594;</span>
-            </a>
+          {stageGroups.map(([stage, stageLevels]) => (
+            <section className="level-stage" key={stage}>
+              <h2 className="level-stage-heading">Etapa {stage}</h2>
+              <div className="level-grid">
+                {stageLevels.map((level) => (
+                  <a
+                    aria-label={`Etapa ${stage}, nivel ${level.levelNumber}`}
+                    className="level-link"
+                    href={`#/nivel/${stage}/${level.levelNumber}`}
+                    key={`${stage}-${level.levelNumber}`}
+                  >
+                    {level.levelNumber}
+                  </a>
+                ))}
+              </div>
+            </section>
           ))}
         </nav>
       </div>
@@ -527,13 +559,20 @@ function LevelScreen({ level }: { level: LevelDefinition }) {
 
 export default function Home() {
   const hash = useHashRoute();
-  const levelMatch = /^#\/nivel\/(\d+)$/.exec(hash);
+  const levelMatch = /^#\/nivel\/(\d+)\/(\d+)$/.exec(hash);
   const level = levelMatch
-    ? LEVELS.find((candidate) => candidate.id === Number(levelMatch[1]))
+    ? LEVELS.find(
+        (candidate) =>
+          candidate.stage === Number(levelMatch[1]) &&
+          candidate.levelNumber === Number(levelMatch[2]),
+      )
     : undefined;
 
   return level ? (
-    <LevelScreen key={`level-${level.id}`} level={level} />
+    <LevelScreen
+      key={`level-${level.stage}-${level.levelNumber}`}
+      level={level}
+    />
   ) : (
     <HomeScreen />
   );
