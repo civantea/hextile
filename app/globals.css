@@ -98,11 +98,11 @@ a:focus-visible {
   margin-top: 72px;
 }
 
-.level-link {
+.level-link,
+.generator-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
   border: 2px solid var(--line);
   border-radius: 12px;
   background: var(--tile);
@@ -117,7 +117,21 @@ a:focus-visible {
     box-shadow 120ms ease;
 }
 
-.level-link:hover {
+.level-link {
+  width: 100%;
+}
+
+.generator-link {
+  position: absolute;
+  top: calc(8vh + 136px);
+  right: 64px;
+  width: 210px;
+  background: var(--ink);
+  color: white;
+}
+
+.level-link:hover,
+.generator-link:hover {
   transform: translateY(2px);
   box-shadow: 0 5px 0 var(--line);
 }
@@ -422,6 +436,53 @@ a:focus-visible {
   font-size: 14px;
   font-weight: 750;
   opacity: 1;
+}
+
+.save-solution-action {
+  flex: none;
+  min-height: 44px;
+  border: 2px solid var(--line);
+  border-radius: 9px;
+  background: var(--ink);
+  color: white;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 5px 0 var(--line);
+}
+
+.save-solution-action:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 4px 0 var(--line);
+}
+
+.save-solution-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.save-status {
+  margin: -6px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.save-status[data-tone='error'] {
+  border-color: #b91c1c;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+.save-status[data-tone='success'] {
+  border-color: #15803d;
+  background: #f0fdf4;
+  color: #166534;
 }
 
 .menu-swatch {

@@ -49,12 +49,16 @@ export type LevelDefinition = {
   inventory: Partial<Record<ColorId, number>>;
   fixedPlacements: Placements;
   rules: {
-    general: GeneralRule[];
     colors: Array<{
       color: ColorId;
       text: string;
     }>;
   };
+};
+
+export type RequestedPlacement = {
+  coordinate: Coordinate;
+  color: ColorId;
 };
 
 export const COLOR_DEFINITIONS: Record<ColorId, ColorDefinition> = {
@@ -96,6 +100,64 @@ export const COLOR_DEFINITIONS: Record<ColorId, ColorDefinition> = {
   },
 };
 
+export const COLOR_IDS = Object.keys(COLOR_DEFINITIONS) as ColorId[];
+
+export const GENERAL_RULES: GeneralRule[] = [
+  {
+    text: 'Elige un hexágono blanco y asígnale un color disponible.',
+  },
+  {
+    text: 'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
+  },
+  {
+    text: 'Consulta cuántas piezas quedan de cada color en la sección Colores disponibles.',
+  },
+  {
+    text: 'Usa todas las piezas: los contadores deben llegar a cero.',
+  },
+  {
+    text: 'Un hexágono coloreado ya no puede modificarse.',
+  },
+  {
+    text: 'Presiona Validar para revisar cada hexágono coloreado, tanto inicial como colocado por ti.',
+    details: ['✅ Cumple las reglas.', '❌ No cumple las reglas.'],
+  },
+  {
+    text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅.',
+  },
+  {
+    text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
+  },
+];
+
+export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
+  {
+    text: 'Elige cualquier hexágono blanco y asígnale un color.',
+  },
+  {
+    text: 'En el generador puedes pintar un hexágono aunque todos sus vecinos sean blancos.',
+  },
+  {
+    text: 'No hay límite de piezas de ningún color.',
+  },
+  {
+    text: 'Los contadores registran cuántos hexágonos has usado de cada color.',
+  },
+  {
+    text: 'Un hexágono coloreado ya no puede modificarse.',
+  },
+  {
+    text: 'Presiona Validar para revisar cada hexágono coloreado.',
+    details: ['✅ Cumple las reglas.', '❌ No cumple las reglas.'],
+  },
+  {
+    text: 'Solo puedes guardar una solución cuando todos los hexágonos muestran ✅.',
+  },
+  {
+    text: 'El botón Reiniciar borra todas las piezas y las marcas de validación.',
+  },
+];
+
 export const LEVELS: LevelDefinition[] = [
   {
     id: 1,
@@ -109,36 +171,6 @@ export const LEVELS: LevelDefinition[] = [
       '0,-1': 'celeste',
     },
     rules: {
-      general: [
-        {
-          text: 'Elige un hexágono blanco y asígnale un color disponible.',
-        },
-        {
-          text: 'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
-        },
-        {
-          text: 'Consulta cuántas piezas quedan de cada color en la sección Colores disponibles.',
-        },
-        {
-          text: 'Usa todas las piezas: los contadores deben llegar a cero.',
-        },
-        {
-          text: 'Un hexágono coloreado ya no puede modificarse.',
-        },
-        {
-          text: 'Presiona Validar para revisar cada hexágono coloreado, tanto inicial como colocado por ti.',
-          details: [
-            '✅ Cumple las reglas.',
-            '❌ No cumple las reglas.',
-          ],
-        },
-        {
-          text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅.',
-        },
-        {
-          text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
-        },
-      ],
       colors: [
         {
           color: 'celeste',
@@ -148,6 +180,48 @@ export const LEVELS: LevelDefinition[] = [
     },
   },
 ];
+
+export const GENERATOR_TEMPLATE: LevelDefinition = {
+  id: 0,
+  label: 'Generar nivel',
+  inventory: {
+    azul: 0,
+    verde: 0,
+    morado: 0,
+    naranja: 0,
+    rojo: 0,
+    celeste: 0,
+  },
+  fixedPlacements: {},
+  rules: {
+    colors: [
+      {
+        color: 'azul',
+        text: 'Debe tener exactamente cuatro vecinos coloreados.',
+      },
+      {
+        color: 'verde',
+        text: 'Debe tener exactamente dos vecinos coloreados.',
+      },
+      {
+        color: 'morado',
+        text: 'Debe tener exactamente tres vecinos coloreados.',
+      },
+      {
+        color: 'naranja',
+        text: 'Debe tener exactamente cinco vecinos coloreados.',
+      },
+      {
+        color: 'rojo',
+        text: 'Debe tener exactamente seis vecinos coloreados.',
+      },
+      {
+        color: 'celeste',
+        text: 'Debe tener al menos tres vecinos coloreados.',
+      },
+    ],
+  },
+};
 
 export const AXIAL_NEIGHBOR_OFFSETS: Coordinate[] = [
   { q: 1, r: 0 },
@@ -214,10 +288,51 @@ export function getRemainingInventory(
   return remaining;
 }
 
+export function getPlacementCounts(
+  colors: readonly ColorId[],
+  placements: Placements,
+) {
+  const counts: Partial<Record<ColorId, number>> = {};
+  colors.forEach((color) => {
+    counts[color] = 0;
+  });
+  Object.values(placements).forEach((color) => {
+    counts[color] = (counts[color] ?? 0) + 1;
+  });
+  return counts;
+}
+
+export function placeUnrestrictedTiles(
+  current: Placements,
+  requested: RequestedPlacement[],
+): Placements {
+  const next = { ...current };
+  const seen = new Set<string>();
+
+  requested.forEach(({ coordinate, color }) => {
+    const key = coordinateKey(coordinate);
+    if (!BOARD_KEYS.has(key)) {
+      throw new Error(
+        `La coordenada (${coordinate.q},${coordinate.r}) no existe.`,
+      );
+    }
+    if (next[key] || seen.has(key)) {
+      throw new Error(
+        `El hexágono (${coordinate.q},${coordinate.r}) ya tiene color.`,
+      );
+    }
+
+    next[key] = color;
+    seen.add(key);
+  });
+
+  return next;
+}
+
 export function placeTiles(
   current: Placements,
   inventory: LevelDefinition['inventory'],
-  requested: Array<{ coordinate: Coordinate; color: ColorId }>,
+  requested: RequestedPlacement[],
   fixedPlacements: Placements = {},
 ): Placements {
   const next = { ...current };

@@ -22,17 +22,24 @@ import {
   BOARD_CENTER_INDEX,
   BOARD_TILES,
   COLOR_DEFINITIONS,
+  GENERAL_RULES,
+  GENERATOR_GENERAL_RULES,
+  GENERATOR_TEMPLATE,
   LEVELS,
+  getPlacementCounts,
   getRemainingInventory,
   hasColoredNeighbor,
   isColorId,
   placeTiles,
+  placeUnrestrictedTiles,
   validatePlacements,
   type ColorId,
-  type Coordinate,
+  type LevelDefinition,
   type Placements,
+  type RequestedPlacement,
   type ValidationMarks,
 } from '@/lib/hextile';
+import { placementsToSolution } from '@/lib/level-manifest';
 
 type ToolDefinition = {
   name: string;
@@ -57,8 +64,12 @@ declare global {
   }
 }
 
-const LEVEL = LEVELS[0];
-const LEVEL_COLORS = Object.keys(LEVEL.inventory) as ColorId[];
+type ScreenMode = 'level' | 'generator';
+
+type SaveStatus = {
+  tone: 'success' | 'error';
+  message: string;
+};
 
 function useHashRoute() {
   const [hash, setHash] = useState('#/');
@@ -91,6 +102,10 @@ function HomeScreen() {
           ))}
         </nav>
       </div>
+      <a className="generator-link" href="#/generar">
+        <span>Generar nivel</span>
+        <span aria-hidden="true">&#8594;</span>
+      </a>
     </main>
   );
 }
@@ -119,52 +134,80 @@ function parsePlacementInput(input: unknown) {
   });
 }
 
-function LevelScreen() {
+function BoardScreen({
+  level,
+  mode = 'level',
+}: {
+  level: LevelDefinition;
+  mode?: ScreenMode;
+}) {
+  const isGenerator = mode === 'generator';
+  const generalRules = isGenerator
+    ? GENERATOR_GENERAL_RULES
+    : GENERAL_RULES;
   const [playerPlacements, setPlayerPlacements] = useState<Placements>({});
   const [marks, setMarks] = useState<ValidationMarks>({});
   const [openTileKey, setOpenTileKey] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const playerPlacementsRef = useRef<Placements>({});
 
-  const remaining = useMemo(
-    () => getRemainingInventory(LEVEL.inventory, playerPlacements),
-    [playerPlacements],
+  const levelColors = useMemo(
+    () => Object.keys(level.inventory) as ColorId[],
+    [level],
+  );
+  const inventoryCounts = useMemo(
+    () =>
+      isGenerator
+        ? getPlacementCounts(levelColors, playerPlacements)
+        : getRemainingInventory(level.inventory, playerPlacements),
+    [isGenerator, level.inventory, levelColors, playerPlacements],
   );
   const placements = useMemo(
-    () => ({ ...LEVEL.fixedPlacements, ...playerPlacements }),
-    [playerPlacements],
+    () => ({ ...level.fixedPlacements, ...playerPlacements }),
+    [level.fixedPlacements, playerPlacements],
   );
-  const availableColors = LEVEL_COLORS.filter(
-    (color) => (remaining[color] ?? 0) > 0,
+  const availableColors = useMemo(
+    () =>
+      isGenerator
+        ? levelColors
+        : levelColors.filter(
+            (color) => (inventoryCounts[color] ?? 0) > 0,
+          ),
+    [inventoryCounts, isGenerator, levelColors],
   );
 
   const applyTiles = useCallback(
-    (requested: Array<{ coordinate: Coordinate; color: ColorId }>) => {
+    (requested: RequestedPlacement[]) => {
       let next: Placements = playerPlacementsRef.current;
       flushSync(() => {
-        next = placeTiles(
-          playerPlacementsRef.current,
-          LEVEL.inventory,
-          requested,
-          LEVEL.fixedPlacements,
-        );
+        next = isGenerator
+          ? placeUnrestrictedTiles(playerPlacementsRef.current, requested)
+          : placeTiles(
+              playerPlacementsRef.current,
+              level.inventory,
+              requested,
+              level.fixedPlacements,
+            );
         playerPlacementsRef.current = next;
         setPlayerPlacements(next);
         setMarks({});
         setOpenTileKey(null);
+        setSaveStatus(null);
       });
       return next;
     },
-    [],
+    [isGenerator, level.fixedPlacements, level.inventory],
   );
 
   const validateLevel = useCallback(() => {
     const nextMarks = validatePlacements({
-      ...LEVEL.fixedPlacements,
+      ...level.fixedPlacements,
       ...playerPlacementsRef.current,
     });
     flushSync(() => setMarks(nextMarks));
     return nextMarks;
-  }, []);
+  }, [level.fixedPlacements]);
 
   const resetLevel = useCallback(() => {
     flushSync(() => {
@@ -172,7 +215,66 @@ function LevelScreen() {
       setPlayerPlacements({});
       setMarks({});
       setOpenTileKey(null);
+      setSaveStatus(null);
     });
+  }, []);
+
+  const saveSolution = useCallback(async () => {
+    const currentPlacements = playerPlacementsRef.current;
+    const nextMarks = validatePlacements(currentPlacements);
+    flushSync(() => setMarks(nextMarks));
+
+    if (Object.keys(currentPlacements).length === 0) {
+      setSaveStatus({
+        tone: 'error',
+        message:
+          'No se puede guardar: pinta y valida al menos un hexágono.',
+      });
+      return;
+    }
+
+    if (Object.values(nextMarks).some((mark) => !mark.valid)) {
+      setSaveStatus({
+        tone: 'error',
+        message:
+          'No se puede guardar: la validación contiene uno o más ❌.',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus(null);
+    try {
+      const response = await fetch('/__hextile/save-level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          solution: placementsToSolution(currentPlacements),
+        }),
+      });
+      const result = (await response.json()) as {
+        id?: string;
+        error?: string;
+      };
+      if (!response.ok || !result.id) {
+        throw new Error(result.error ?? 'No se pudo guardar la solución.');
+      }
+
+      setSaveStatus({
+        tone: 'success',
+        message: `Solución guardada en niveles/${result.id}.json.`,
+      });
+    } catch (error) {
+      setSaveStatus({
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo guardar la solución.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -192,9 +294,10 @@ function LevelScreen() {
 
     register({
       name: 'place_level_tiles',
-      title: 'Colocar piezas del nivel',
-      description:
-        'Coloca una o varias piezas en hexágonos blancos del Nivel 1 y actualiza el tablero visible.',
+      title: isGenerator
+        ? 'Colocar piezas del generador'
+        : 'Colocar piezas del nivel',
+      description: `Coloca una o varias piezas en hexágonos blancos de ${level.label} y actualiza el tablero visible.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -206,7 +309,7 @@ function LevelScreen() {
               properties: {
                 q: { type: 'integer' },
                 r: { type: 'integer' },
-                color: { type: 'string', enum: LEVEL_COLORS },
+                color: { type: 'string', enum: levelColors },
               },
               required: ['q', 'r', 'color'],
               additionalProperties: false,
@@ -220,10 +323,15 @@ function LevelScreen() {
       execute(input) {
         const requested = parsePlacementInput(input);
         const next = applyTiles(requested);
-        return {
-          placed: requested.length,
-          remaining: getRemainingInventory(LEVEL.inventory, next),
-        };
+        return isGenerator
+          ? {
+              placed: requested.length,
+              counts: getPlacementCounts(levelColors, next),
+            }
+          : {
+              placed: requested.length,
+              remaining: getRemainingInventory(level.inventory, next),
+            };
       },
     });
 
@@ -253,7 +361,7 @@ function LevelScreen() {
     register({
       name: 'reset_level',
       title: 'Reiniciar nivel',
-      description: 'Quita todas las piezas y marcas y restaura el Nivel 1.',
+      description: `Quita las piezas y marcas y restaura ${level.label}.`,
       inputSchema: {
         type: 'object',
         properties: {},
@@ -262,20 +370,30 @@ function LevelScreen() {
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute() {
         resetLevel();
-        return { reset: true, remaining: LEVEL.inventory };
+        return isGenerator
+          ? { reset: true, counts: getPlacementCounts(levelColors, {}) }
+          : { reset: true, remaining: level.inventory };
       },
     });
 
     return () => lifecycle.abort();
-  }, [applyTiles, resetLevel, validateLevel]);
+  }, [
+    applyTiles,
+    isGenerator,
+    level.inventory,
+    level.label,
+    levelColors,
+    resetLevel,
+    validateLevel,
+  ]);
 
   return (
-    <main className="game-screen">
+    <main className="game-screen" data-mode={mode}>
       <header className="game-heading">
         <a href="#/" className="brand-link" aria-label="Volver a los niveles">
           HEXTILE
         </a>
-        <h1>{LEVEL.label}</h1>
+        <h1>{level.label}</h1>
       </header>
 
       <aside
@@ -284,7 +402,7 @@ function LevelScreen() {
       >
         <h2 id="general-rules-title">Reglamento general</h2>
         <ol className="rules-list">
-          {LEVEL.rules.general.map((rule) => (
+          {generalRules.map((rule) => (
             <li key={rule.text}>
               {rule.text}
               {rule.details ? (
@@ -309,7 +427,7 @@ function LevelScreen() {
         >
           <h2 id="color-rules-title">Reglamento de colores</h2>
           <ul className="color-rules-list">
-            {LEVEL.rules.colors.map((rule) => {
+            {level.rules.colors.map((rule) => {
               const definition = COLOR_DEFINITIONS[rule.color];
               return (
                 <li key={rule.color}>
@@ -333,7 +451,7 @@ function LevelScreen() {
         >
           <h2 id="inventory-title">Colores disponibles</h2>
           <div className="inventory-list">
-            {LEVEL_COLORS.map((color) => {
+            {levelColors.map((color) => {
               const definition = COLOR_DEFINITIONS[color];
               return (
                 <div className="inventory-item" key={color}>
@@ -343,30 +461,57 @@ function LevelScreen() {
                     aria-hidden="true"
                   />
                   <span
-                    aria-label={`${definition.label}: ${remaining[color] ?? 0}`}
+                    aria-label={`${definition.label}: ${inventoryCounts[color] ?? 0}`}
                   >
-                    {remaining[color] ?? 0}
+                    {inventoryCounts[color] ?? 0}
                   </span>
                 </div>
               );
             })}
           </div>
         </section>
+
+        {isGenerator ? (
+          <>
+            <button
+              className="save-solution-action"
+              type="button"
+              disabled={isSaving}
+              onClick={() => void saveSolution()}
+            >
+              {isSaving ? 'Guardando…' : 'Guardar solución'}
+            </button>
+            {saveStatus ? (
+              <p
+                className="save-status"
+                data-tone={saveStatus.tone}
+                role={saveStatus.tone === 'error' ? 'alert' : 'status'}
+              >
+                {saveStatus.message}
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </aside>
 
       <div className="board-shell" aria-label="Tablero hexagonal de 15 por 15">
         {BOARD_TILES.map((tile) => {
           const color = placements[tile.key];
-          const isFixed = Boolean(LEVEL.fixedPlacements[tile.key]);
+          const isFixed = Boolean(level.fixedPlacements[tile.key]);
           const mark = marks[tile.key];
           const isEmpty = !color;
           const hasAvailableColors = availableColors.length > 0;
           const isAdjacentToColor =
             isEmpty && hasColoredNeighbor(tile, placements);
           const canPlace =
-            isEmpty && hasAvailableColors && isAdjacentToColor;
+            isEmpty &&
+            hasAvailableColors &&
+            (isGenerator || isAdjacentToColor);
           const showUnavailableNotice =
-            isEmpty && hasAvailableColors && !isAdjacentToColor;
+            !isGenerator &&
+            isEmpty &&
+            hasAvailableColors &&
+            !isAdjacentToColor;
           const coordinate = `(${tile.q},${tile.r})`;
           const definition = color ? COLOR_DEFINITIONS[color] : undefined;
           const feedback = mark ? (mark.valid ? 'correcto' : 'incorrecto') : '';
@@ -519,5 +664,24 @@ function LevelScreen() {
 
 export default function Home() {
   const hash = useHashRoute();
-  return hash === '#/nivel/1' ? <LevelScreen /> : <HomeScreen />;
+  if (hash === '#/generar') {
+    return (
+      <BoardScreen
+        key="generator"
+        level={GENERATOR_TEMPLATE}
+        mode="generator"
+      />
+    );
+  }
+
+  const levelMatch = /^#\/nivel\/(\d+)$/.exec(hash);
+  const level = levelMatch
+    ? LEVELS.find((candidate) => candidate.id === Number(levelMatch[1]))
+    : undefined;
+
+  return level ? (
+    <BoardScreen key={`level-${level.id}`} level={level} />
+  ) : (
+    <HomeScreen />
+  );
 }

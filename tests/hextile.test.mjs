@@ -4,11 +4,14 @@ import test from 'node:test';
 import {
   AXIAL_NEIGHBOR_OFFSETS,
   BOARD_TILES,
+  GENERATOR_TEMPLATE,
   LEVELS,
   coordinateKey,
+  getPlacementCounts,
   getRemainingInventory,
   hasColoredNeighbor,
   placeTiles,
+  placeUnrestrictedTiles,
   requirementIsMet,
   validatePlacements,
 } from '../lib/hextile.ts';
@@ -125,7 +128,7 @@ test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', ()
 });
 
 test('cada nivel describe exactamente sus colores disponibles', () => {
-  LEVELS.forEach((level) => {
+  [...LEVELS, GENERATOR_TEMPLATE].forEach((level) => {
     const availableColors = Object.keys(level.inventory).sort();
     const describedColors = level.rules.colors
       .map((rule) => rule.color)
@@ -142,6 +145,34 @@ test('cada nivel describe exactamente sus colores disponibles', () => {
       `${level.label} debe describir todos y solo sus colores disponibles`,
     );
   });
+});
+
+test('el generador permite piezas aisladas y cuenta colores sin límite', () => {
+  const placed = placeUnrestrictedTiles(
+    {},
+    [
+      { coordinate: { q: 5, r: 0 }, color: 'rojo' },
+      { coordinate: { q: -4, r: 4 }, color: 'azul' },
+      { coordinate: { q: 4, r: -4 }, color: 'rojo' },
+    ],
+  );
+
+  assert.deepEqual(placed, {
+    '5,0': 'rojo',
+    '-4,4': 'azul',
+    '4,-4': 'rojo',
+  });
+  assert.deepEqual(
+    getPlacementCounts(Object.keys(GENERATOR_TEMPLATE.inventory), placed),
+    {
+      azul: 1,
+      verde: 0,
+      morado: 0,
+      naranja: 0,
+      rojo: 2,
+      celeste: 0,
+    },
+  );
 });
 
 test('solo permite colocar junto a un color y admite una cadena secuencial', () => {
