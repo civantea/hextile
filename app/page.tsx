@@ -119,13 +119,17 @@ function parsePlacementInput(input: unknown) {
 }
 
 function LevelScreen() {
-  const [placements, setPlacements] = useState<Placements>({});
+  const [playerPlacements, setPlayerPlacements] = useState<Placements>({});
   const [marks, setMarks] = useState<ValidationMarks>({});
-  const placementsRef = useRef<Placements>({});
+  const playerPlacementsRef = useRef<Placements>({});
 
   const remaining = useMemo(
-    () => getRemainingInventory(LEVEL.inventory, placements),
-    [placements],
+    () => getRemainingInventory(LEVEL.inventory, playerPlacements),
+    [playerPlacements],
+  );
+  const placements = useMemo(
+    () => ({ ...LEVEL.fixedPlacements, ...playerPlacements }),
+    [playerPlacements],
   );
   const availableColors = LEVEL_COLORS.filter(
     (color) => (remaining[color] ?? 0) > 0,
@@ -133,11 +137,16 @@ function LevelScreen() {
 
   const applyTiles = useCallback(
     (requested: Array<{ coordinate: Coordinate; color: ColorId }>) => {
-      let next: Placements = placementsRef.current;
+      let next: Placements = playerPlacementsRef.current;
       flushSync(() => {
-        next = placeTiles(placementsRef.current, LEVEL.inventory, requested);
-        placementsRef.current = next;
-        setPlacements(next);
+        next = placeTiles(
+          playerPlacementsRef.current,
+          LEVEL.inventory,
+          requested,
+          LEVEL.fixedPlacements,
+        );
+        playerPlacementsRef.current = next;
+        setPlayerPlacements(next);
         setMarks({});
       });
       return next;
@@ -146,15 +155,18 @@ function LevelScreen() {
   );
 
   const validateLevel = useCallback(() => {
-    const nextMarks = validatePlacements(placementsRef.current);
+    const nextMarks = validatePlacements({
+      ...LEVEL.fixedPlacements,
+      ...playerPlacementsRef.current,
+    });
     flushSync(() => setMarks(nextMarks));
     return nextMarks;
   }, []);
 
   const resetLevel = useCallback(() => {
     flushSync(() => {
-      placementsRef.current = {};
-      setPlacements({});
+      playerPlacementsRef.current = {};
+      setPlayerPlacements({});
       setMarks({});
     });
   }, []);
@@ -285,14 +297,15 @@ function LevelScreen() {
       <div className="board-shell" aria-label="Tablero hexagonal de 15 por 15">
         {BOARD_TILES.map((tile) => {
           const color = placements[tile.key];
+          const isFixed = Boolean(LEVEL.fixedPlacements[tile.key]);
           const mark = marks[tile.key];
           const canPlace = !color && availableColors.length > 0;
           const coordinate = `(${tile.q},${tile.r})`;
           const definition = color ? COLOR_DEFINITIONS[color] : undefined;
           const feedback = mark ? (mark.valid ? 'correcto' : 'incorrecto') : '';
           const ariaLabel = `Hexágono ${coordinate}, ${definition?.label ?? 'blanco'}${
-            mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''
-          }`;
+            isFixed ? ', fijo' : ''
+          }${mark ? `, ${mark.neighborCount} vecinos, ${feedback}` : ''}`;
           const positionStyle = {
             left: `calc(50% + ${(tile.column - BOARD_CENTER_INDEX) * 34 + (tile.row % 2 === 0 ? -17 : 0)}px)`,
             top: `calc(50% + ${(tile.row - BOARD_CENTER_INDEX) * 29}px)`,

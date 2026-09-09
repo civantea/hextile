@@ -42,6 +42,7 @@ export type LevelDefinition = {
   id: number;
   label: string;
   inventory: Partial<Record<ColorId, number>>;
+  fixedPlacements: Placements;
 };
 
 export const COLOR_DEFINITIONS: Record<ColorId, ColorDefinition> = {
@@ -88,9 +89,12 @@ export const LEVELS: LevelDefinition[] = [
     id: 1,
     label: 'Nivel 1',
     inventory: {
-      azul: 3,
-      verde: 2,
-      morado: 1,
+      celeste: 4,
+    },
+    fixedPlacements: {
+      '0,1': 'celeste',
+      '0,0': 'celeste',
+      '0,-1': 'celeste',
     },
   },
 ];
@@ -148,6 +152,7 @@ export function placeTiles(
   current: Placements,
   inventory: LevelDefinition['inventory'],
   requested: Array<{ coordinate: Coordinate; color: ColorId }>,
+  fixedPlacements: Placements = {},
 ): Placements {
   const next = { ...current };
   const remaining = getRemainingInventory(inventory, current);
@@ -160,7 +165,7 @@ export function placeTiles(
         `La coordenada (${coordinate.q},${coordinate.r}) no existe.`,
       );
     }
-    if (next[key] || seen.has(key)) {
+    if (fixedPlacements[key] || next[key] || seen.has(key)) {
       throw new Error(
         `El hexágono (${coordinate.q},${coordinate.r}) ya tiene color.`,
       );

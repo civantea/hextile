@@ -56,36 +56,59 @@ test('cuenta vecinos no blancos sin importar su color', () => {
 
 test('descuenta inventario y rechaza coordenadas, colores o celdas inválidas', () => {
   const level = LEVELS[0];
-  const placed = placeTiles({}, level.inventory, [
-    { coordinate: { q: 0, r: 0 }, color: 'azul' },
-    { coordinate: { q: 1, r: 0 }, color: 'verde' },
-  ]);
+  const placed = placeTiles(
+    {},
+    level.inventory,
+    [
+      { coordinate: { q: 1, r: 0 }, color: 'celeste' },
+      { coordinate: { q: 1, r: -1 }, color: 'celeste' },
+    ],
+    level.fixedPlacements,
+  );
 
   assert.deepEqual(getRemainingInventory(level.inventory, placed), {
-    azul: 2,
-    verde: 1,
-    morado: 1,
+    celeste: 2,
   });
   assert.throws(
     () =>
-      placeTiles(placed, level.inventory, [
-        { coordinate: { q: 0, r: 0 }, color: 'morado' },
-      ]),
+      placeTiles(
+        placed,
+        level.inventory,
+        [{ coordinate: { q: 0, r: 0 }, color: 'celeste' }],
+        level.fixedPlacements,
+      ),
     /ya tiene color/,
   );
   assert.throws(
     () =>
-      placeTiles(placed, level.inventory, [
-        { coordinate: { q: 99, r: 99 }, color: 'azul' },
-      ]),
+      placeTiles(
+        placed,
+        level.inventory,
+        [{ coordinate: { q: 99, r: 99 }, color: 'celeste' }],
+        level.fixedPlacements,
+      ),
     /no existe/,
   );
   assert.throws(
     () =>
-      placeTiles(placed, level.inventory, [
-        { coordinate: { q: 2, r: 0 }, color: 'rojo' },
-      ]),
+      placeTiles(
+        placed,
+        level.inventory,
+        [{ coordinate: { q: 2, r: 0 }, color: 'rojo' }],
+        level.fixedPlacements,
+      ),
     /no está disponible/,
   );
   assert.equal(coordinateKey({ q: -3, r: 4 }), '-3,4');
+});
+
+test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', () => {
+  const level = LEVELS[0];
+  assert.deepEqual(level.fixedPlacements, {
+    '0,1': 'celeste',
+    '0,0': 'celeste',
+    '0,-1': 'celeste',
+  });
+  assert.deepEqual(level.inventory, { celeste: 4 });
+  assert.deepEqual(getRemainingInventory(level.inventory, {}), { celeste: 4 });
 });
