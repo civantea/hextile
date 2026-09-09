@@ -153,9 +153,7 @@ test('define tres celestes fijos y cuatro celestes colocables en el Nivel 1', ()
 test('cada nivel describe exactamente sus colores disponibles', () => {
   [...LEVELS, GENERATOR_TEMPLATE].forEach((level) => {
     const availableColors = Object.keys(level.inventory).sort();
-    const describedColors = level.rules.colors
-      .map((rule) => rule.color)
-      .sort();
+    const describedColors = level.rules.colors.map((rule) => rule.color).sort();
 
     assert.equal(
       new Set(describedColors).size,
@@ -177,20 +175,17 @@ test('la solución de un nivel exige marcas verdes e inventario agotado', () => 
     GENERATOR_GENERAL_RULES.some(
       (rule) =>
         rule.text ===
-        'Guardar solución se habilita cuando validas y todos los hexágonos muestran ✅.',
+        'Tras una validación exitosa, Guardar solución se habilita. Escribe un nombre para registrar la solución original.',
     ),
   );
 });
 
 test('el generador permite piezas aisladas y cuenta colores sin límite', () => {
-  const placed = placeUnrestrictedTiles(
-    {},
-    [
-      { coordinate: { q: 5, r: 0 }, color: 'rojo' },
-      { coordinate: { q: -4, r: 4 }, color: 'azul' },
-      { coordinate: { q: 4, r: -4 }, color: 'rojo' },
-    ],
-  );
+  const placed = placeUnrestrictedTiles({}, [
+    { coordinate: { q: 5, r: 0 }, color: 'rojo' },
+    { coordinate: { q: -4, r: 4 }, color: 'azul' },
+    { coordinate: { q: 4, r: -4 }, color: 'rojo' },
+  ]);
 
   assert.deepEqual(placed, {
     '5,0': 'rojo',
@@ -211,10 +206,9 @@ test('el generador permite piezas aisladas y cuenta colores sin límite', () => 
 });
 
 test('el generador permite borrar una pieza y actualiza su contador', () => {
-  const placed = placeUnrestrictedTiles(
-    {},
-    [{ coordinate: { q: 4, r: -4 }, color: 'rojo' }],
-  );
+  const placed = placeUnrestrictedTiles({}, [
+    { coordinate: { q: 4, r: -4 }, color: 'rojo' },
+  ]);
   const removed = removeUnrestrictedTile(placed, { q: 4, r: -4 });
 
   assert.deepEqual(removed, {});
@@ -232,13 +226,10 @@ test('el generador permite borrar una pieza y actualiza su contador', () => {
 });
 
 test('el modo estado inicial retira piezas hacia la mano inicial', () => {
-  const placed = placeUnrestrictedTiles(
-    {},
-    [
-      { coordinate: { q: 0, r: 0 }, color: 'celeste' },
-      { coordinate: { q: 1, r: 0 }, color: 'rojo' },
-    ],
-  );
+  const placed = placeUnrestrictedTiles({}, [
+    { coordinate: { q: 0, r: 0 }, color: 'celeste' },
+    { coordinate: { q: 1, r: 0 }, color: 'rojo' },
+  ]);
   const retired = retireUnrestrictedTile(
     placed,
     getPlacementCounts(['celeste', 'rojo'], {}),

@@ -624,6 +624,17 @@ a:focus-visible {
   transform: translateX(-50%);
 }
 
+.game-screen[data-mode='generator'] .game-controls {
+  bottom: 14px;
+  gap: 7px;
+}
+
+.session-progress-list {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
 .session-progress {
   display: flex;
   align-items: center;
@@ -633,7 +644,7 @@ a:focus-visible {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
   color: #6b7280;
-  padding: 7px 12px;
+  padding: 6px 12px;
   font-size: 14px;
   font-weight: 750;
   line-height: 1.2;
@@ -713,4 +724,86 @@ a:focus-visible {
 .primary-action:active:not(:disabled),
 .secondary-action:active:not(:disabled) {
   transform: translateY(1px);
+}
+
+.level-name-dialog {
+  width: 430px;
+  max-width: calc(100vw - 80px);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 0;
+  box-shadow:
+    0 12px 0 var(--line),
+    0 24px 54px rgba(17, 24, 39, 0.28);
+}
+
+.level-name-dialog::backdrop {
+  background: rgba(17, 24, 39, 0.58);
+}
+
+.level-name-form {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+
+.level-name-form h2,
+.level-name-form p {
+  margin: 0;
+}
+
+.level-name-form h2 {
+  font-size: 23px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+
+.level-name-form > p:not(.level-name-error) {
+  color: var(--muted-ink);
+  font-size: 15px;
+  line-height: 1.42;
+}
+
+.level-name-form label {
+  margin-bottom: -6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.level-name-form input {
+  width: 100%;
+  height: 44px;
+  border: 2px solid #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.level-name-form input:focus {
+  border-color: var(--blue);
+  outline: 3px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 1px;
+}
+
+.level-name-error {
+  border: 1px solid #b91c1c;
+  border-radius: 7px;
+  background: #fff1f2;
+  color: #991b1b;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.level-name-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
 }

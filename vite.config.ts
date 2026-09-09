@@ -8,10 +8,10 @@ import vinext from 'vinext';
 import { defineConfig, type Plugin } from 'vite';
 import hostingConfig from './.openai/hosting.json';
 import {
-  parseSolutionPayload,
-  solutionToPlacements,
+  levelNameToFilename,
+  parseLevelManifestPayload,
   type LevelManifest,
-  type LevelSolutionEntry,
+  type LevelManifestPayload,
 } from './lib/level-manifest';
 import { validatePlacements } from './lib/hextile';
 
@@ -57,26 +57,30 @@ function sendJson(
   response.end(JSON.stringify(payload));
 }
 
-async function writeLevelManifest(solution: LevelSolutionEntry[]) {
+async function writeLevelManifest({
+  name,
+  originalSolution,
+}: LevelManifestPayload) {
   const levelsDirectory = resolve(process.cwd(), 'niveles');
   await mkdir(levelsDirectory, { recursive: true });
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const id = randomUUID();
-    const manifest: LevelManifest = { id, solution };
-    try {
-      await writeFile(
-        resolve(levelsDirectory, `${id}.json`),
-        `${JSON.stringify(manifest, null, 2)}\n`,
-        { encoding: 'utf8', flag: 'wx' },
-      );
-      return id;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+  const id = randomUUID();
+  const fileName = levelNameToFilename(name);
+  const manifest: LevelManifest = { id, name, originalSolution };
+  try {
+    await writeFile(
+      resolve(levelsDirectory, fileName),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      { encoding: 'utf8', flag: 'wx' },
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new Error('Ya existe un nivel con ese nombre. Elige otro.');
     }
+    throw error;
   }
 
-  throw new Error('No se pudo generar un identificador único.');
+  return { id, fileName };
 }
 
 function levelManifestWriter(): Plugin {
@@ -95,14 +99,15 @@ function levelManifestWriter(): Plugin {
           for await (const chunk of request) {
             body += chunk;
             if (Buffer.byteLength(body, 'utf8') > MAX_REQUEST_SIZE) {
-              sendJson(response, 413, { error: 'La solución es demasiado grande.' });
+              sendJson(response, 413, {
+                error: 'La solución es demasiado grande.',
+              });
               return;
             }
           }
 
-          const solution = parseSolutionPayload(JSON.parse(body));
-          const placements = solutionToPlacements(solution);
-          const validation = validatePlacements(placements);
+          const payload = parseLevelManifestPayload(JSON.parse(body));
+          const validation = validatePlacements(payload.originalSolution);
           if (Object.values(validation).some((mark) => !mark.valid)) {
             sendJson(response, 422, {
               error:
@@ -111,8 +116,8 @@ function levelManifestWriter(): Plugin {
             return;
           }
 
-          const id = await writeLevelManifest(solution);
-          sendJson(response, 201, { id });
+          const result = await writeLevelManifest(payload);
+          sendJson(response, 201, result);
         } catch (error) {
           sendJson(response, 400, {
             error:

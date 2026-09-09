@@ -157,7 +157,7 @@ export const GENERATOR_GENERAL_RULES: GeneralRule[] = [
     details: ['✅ Cumple las reglas.', '❌ No cumple las reglas.'],
   },
   {
-    text: 'Guardar solución se habilita cuando validas y todos los hexágonos muestran ✅.',
+    text: 'Tras una validación exitosa, Guardar solución se habilita. Escribe un nombre para registrar la solución original.',
   },
   {
     text: 'El botón Reiniciar borra todas las piezas, la Mano inicial y las marcas de validación.',

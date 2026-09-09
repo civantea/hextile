@@ -42,7 +42,11 @@ import {
   type RequestedPlacement,
   type ValidationMarks,
 } from '@/lib/hextile';
-import { placementsToSolution } from '@/lib/level-manifest';
+import {
+  MAX_LEVEL_NAME_LENGTH,
+  normalizeLevelName,
+  placementsToOriginalSolution,
+} from '@/lib/level-manifest';
 
 type ToolDefinition = {
   name: string;
@@ -68,7 +72,7 @@ declare global {
 }
 
 type ScreenMode = 'level' | 'generator';
-type BuildSessionState = 'new' | 'solution-validated';
+type BuildSessionState = 'new' | 'solution-validated' | 'solution-saved';
 type RulesTab = 'general' | 'colors' | 'validate';
 
 type SaveStatus = {
@@ -185,6 +189,8 @@ function BoardScreen({
   const [openTileKey, setOpenTileKey] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [levelName, setLevelName] = useState('');
+  const [levelNameError, setLevelNameError] = useState<string | null>(null);
   const [isInitialStateMode, setIsInitialStateMode] = useState(false);
   const [activeRulesTab, setActiveRulesTab] = useState<RulesTab>('general');
   const [buildSessionState, setBuildSessionState] =
@@ -193,6 +199,7 @@ function BoardScreen({
     Partial<Record<ColorId, number>>
   >(() => getPlacementCounts(levelColors, {}));
   const playerPlacementsRef = useRef<Placements>({});
+  const levelNameDialogRef = useRef<HTMLDialogElement>(null);
   const inventoryCounts = useMemo(
     () =>
       isGenerator
@@ -244,8 +251,12 @@ function BoardScreen({
     flushSync(() => {
       setMarks(nextMarks);
       if (isGenerator) {
-        setBuildSessionState(
-          validationIsSuccessful(nextMarks) ? 'solution-validated' : 'new',
+        setBuildSessionState((current) =>
+          validationIsSuccessful(nextMarks)
+            ? current === 'solution-saved'
+              ? current
+              : 'solution-validated'
+            : 'new',
         );
       }
     });
@@ -306,15 +317,23 @@ function BoardScreen({
       setMarks({});
       setOpenTileKey(null);
       setSaveStatus(null);
+      setLevelName('');
+      setLevelNameError(null);
+      levelNameDialogRef.current?.close();
     });
   }, [levelColors]);
 
-  const isSolutionValidated = buildSessionState === 'solution-validated';
+  const isSolutionValidated = buildSessionState !== 'new';
+  const isSolutionSaved = buildSessionState === 'solution-saved';
 
-  const saveSolution = useCallback(async () => {
+  const requestSolutionName = useCallback(() => {
     const currentPlacements = playerPlacementsRef.current;
     const nextMarks = validatePlacements(currentPlacements);
-    flushSync(() => setMarks(nextMarks));
+    const validationSucceeded = validationIsSuccessful(nextMarks);
+    flushSync(() => {
+      setMarks(nextMarks);
+      setBuildSessionState(validationSucceeded ? 'solution-validated' : 'new');
+    });
 
     if (Object.keys(currentPlacements).length === 0) {
       setSaveStatus({
@@ -324,7 +343,7 @@ function BoardScreen({
       return;
     }
 
-    if (Object.values(nextMarks).some((mark) => !mark.valid)) {
+    if (!validationSucceeded) {
       setSaveStatus({
         tone: 'error',
         message: 'No se puede guardar: la validación contiene uno o más ❌.',
@@ -332,40 +351,77 @@ function BoardScreen({
       return;
     }
 
+    setLevelName('');
+    setLevelNameError(null);
+    setSaveStatus(null);
+    if (!levelNameDialogRef.current?.open) {
+      levelNameDialogRef.current?.showModal();
+    }
+  }, []);
+
+  const saveSolution = useCallback(async () => {
+    let normalizedName: string;
+    try {
+      normalizedName = normalizeLevelName(levelName);
+    } catch (error) {
+      setLevelNameError(
+        error instanceof Error
+          ? error.message
+          : 'Escribe un nombre para identificar el nivel.',
+      );
+      return;
+    }
+
+    const currentPlacements = playerPlacementsRef.current;
+    const nextMarks = validatePlacements(currentPlacements);
+    if (!validationIsSuccessful(nextMarks)) {
+      flushSync(() => {
+        setMarks(nextMarks);
+        setBuildSessionState('new');
+      });
+      setLevelNameError(
+        'La solución cambió o contiene uno o más ❌. Valídala de nuevo.',
+      );
+      return;
+    }
+
     setIsSaving(true);
+    setLevelNameError(null);
     setSaveStatus(null);
     try {
       const response = await fetch('/__hextile/save-level', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          solution: placementsToSolution(currentPlacements),
+          name: normalizedName,
+          originalSolution: placementsToOriginalSolution(currentPlacements),
         }),
       });
       const result = (await response.json()) as {
         id?: string;
+        fileName?: string;
         error?: string;
       };
-      if (!response.ok || !result.id) {
+      if (!response.ok || !result.id || !result.fileName) {
         throw new Error(result.error ?? 'No se pudo guardar la solución.');
       }
 
+      setBuildSessionState('solution-saved');
+      levelNameDialogRef.current?.close();
       setSaveStatus({
         tone: 'success',
-        message: `Solución guardada en niveles/${result.id}.json.`,
+        message: `Solución original guardada en niveles/${result.fileName}.`,
       });
     } catch (error) {
-      setSaveStatus({
-        tone: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'No se pudo guardar la solución.',
-      });
+      setLevelNameError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar la solución.',
+      );
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [levelName]);
 
   useEffect(() => {
     const context = document.modelContext;
@@ -602,8 +658,8 @@ function BoardScreen({
               </li>
               {isGenerator ? (
                 <li>
-                  Cuando todos muestran ✅, se completa este paso y se habilita
-                  Guardar solución.
+                  Cuando todos muestran ✅, se completa este paso, aparece el
+                  siguiente requisito y se habilita Guardar solución.
                 </li>
               ) : (
                 <li>
@@ -902,16 +958,28 @@ function BoardScreen({
 
       <div className="game-controls">
         {isGenerator ? (
-          <output
-            className="session-progress"
-            data-complete={isSolutionValidated ? 'true' : 'false'}
-            aria-live="polite"
-          >
-            <span className="session-progress-marker" aria-hidden="true">
-              {isSolutionValidated ? '✓' : ''}
-            </span>
-            Para avanzar debes validar una solución exitosa
-          </output>
+          <div className="session-progress-list" aria-live="polite">
+            <p
+              className="session-progress"
+              data-complete={isSolutionValidated ? 'true' : 'false'}
+            >
+              <span className="session-progress-marker" aria-hidden="true">
+                {isSolutionValidated ? '✓' : ''}
+              </span>
+              Para avanzar debes validar una solución exitosa
+            </p>
+            {isSolutionValidated ? (
+              <p
+                className="session-progress"
+                data-complete={isSolutionSaved ? 'true' : 'false'}
+              >
+                <span className="session-progress-marker" aria-hidden="true">
+                  {isSolutionSaved ? '✓' : ''}
+                </span>
+                Guarda la solución original para continuar.
+              </p>
+            ) : null}
+          </div>
         ) : null}
         <div className="game-actions">
           {isGenerator ? (
@@ -926,10 +994,10 @@ function BoardScreen({
               <button
                 className="primary-action"
                 type="button"
-                disabled={!isSolutionValidated || isSaving}
-                onClick={() => void saveSolution()}
+                disabled={!isSolutionValidated || isSaving || isSolutionSaved}
+                onClick={requestSolutionName}
               >
-                {isSaving ? 'Guardando…' : 'Guardar solución'}
+                Guardar solución
               </button>
               <button
                 className="secondary-action initial-state-action"
@@ -968,6 +1036,68 @@ function BoardScreen({
           )}
         </div>
       </div>
+
+      {isGenerator ? (
+        <dialog
+          className="level-name-dialog"
+          ref={levelNameDialogRef}
+          aria-labelledby="level-name-dialog-title"
+          aria-describedby="level-name-dialog-description"
+          onClose={() => setLevelNameError(null)}
+        >
+          <form
+            className="level-name-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveSolution();
+            }}
+          >
+            <h2 id="level-name-dialog-title">Nombre del nivel</h2>
+            <p id="level-name-dialog-description">
+              Escribe un nombre para identificar el nivel y el archivo de su
+              solución original.
+            </p>
+            <label htmlFor="level-name-input">Nombre</label>
+            <input
+              id="level-name-input"
+              name="levelName"
+              type="text"
+              value={levelName}
+              maxLength={MAX_LEVEL_NAME_LENGTH}
+              placeholder="Ej. Puente celeste"
+              autoComplete="off"
+              autoFocus
+              required
+              onChange={(event) => {
+                setLevelName(event.target.value);
+                setLevelNameError(null);
+              }}
+            />
+            {levelNameError ? (
+              <p className="level-name-error" role="alert">
+                {levelNameError}
+              </p>
+            ) : null}
+            <div className="level-name-actions">
+              <button
+                className="secondary-action"
+                type="button"
+                disabled={isSaving}
+                onClick={() => levelNameDialogRef.current?.close()}
+              >
+                Cancelar
+              </button>
+              <button
+                className="primary-action"
+                type="submit"
+                disabled={!levelName.trim() || isSaving}
+              >
+                {isSaving ? 'Guardando…' : 'Aceptar'}
+              </button>
+            </div>
+          </form>
+        </dialog>
+      ) : null}
     </main>
   );
 }

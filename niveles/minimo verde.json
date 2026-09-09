@@ -1,0 +1,9 @@
+{
+  "id": "34a29e30-cde3-4349-bd29-fafeef2e02d7",
+  "name": "minimo verde",
+  "originalSolution": {
+    "-1,-1": "verde",
+    "0,-1": "verde",
+    "-1,0": "verde"
+  }
+}

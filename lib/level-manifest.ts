@@ -1,86 +1,107 @@
 import {
   BOARD_KEYS,
   BOARD_TILES,
-  coordinateKey,
   isColorId,
-  type ColorId,
-  type Coordinate,
   type Placements,
 } from './hextile.ts';
 
-export type LevelSolutionEntry = {
-  coordinate: Coordinate;
-  color: ColorId;
-};
-
 export type LevelManifest = {
   id: string;
-  solution: LevelSolutionEntry[];
+  name: string;
+  originalSolution: Placements;
 };
 
-export function placementsToSolution(
-  placements: Placements,
-): LevelSolutionEntry[] {
-  return BOARD_TILES.flatMap((tile) => {
-    const color = placements[tile.key];
-    return color
-      ? [{ coordinate: { q: tile.q, r: tile.r }, color }]
-      : [];
-  });
+export type LevelManifestPayload = Omit<LevelManifest, 'id'>;
+
+export const MAX_LEVEL_NAME_LENGTH = 80;
+
+export function normalizeLevelName(input: unknown): string {
+  if (typeof input !== 'string') {
+    throw new Error('Escribe un nombre para identificar el nivel.');
+  }
+
+  const name = input.trim().replace(/\s+/g, ' ');
+  if (!name) {
+    throw new Error('Escribe un nombre para identificar el nivel.');
+  }
+  if (name.length > MAX_LEVEL_NAME_LENGTH) {
+    throw new Error(
+      `El nombre no puede tener más de ${MAX_LEVEL_NAME_LENGTH} caracteres.`,
+    );
+  }
+
+  return name;
 }
 
-export function solutionToPlacements(
-  solution: LevelSolutionEntry[],
+export function levelNameToFilename(name: string): string {
+  const filename = normalizeLevelName(name)
+    .normalize('NFC')
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/^\.+|\.+$/g, '')
+    .trim()
+    .slice(0, MAX_LEVEL_NAME_LENGTH)
+    .trim();
+
+  if (!filename) {
+    throw new Error(
+      'El nombre debe incluir caracteres válidos para un archivo.',
+    );
+  }
+
+  return `${filename}.json`;
+}
+
+export function placementsToOriginalSolution(
+  placements: Placements,
 ): Placements {
-  return solution.reduce<Placements>((placements, entry) => {
-    placements[coordinateKey(entry.coordinate)] = entry.color;
-    return placements;
+  return BOARD_TILES.reduce<Placements>((solution, tile) => {
+    const color = placements[tile.key];
+    if (color) solution[tile.key] = color;
+    return solution;
   }, {});
 }
 
-export function parseSolutionPayload(input: unknown): LevelSolutionEntry[] {
-  if (!input || typeof input !== 'object' || !('solution' in input)) {
-    throw new Error('La solicitud debe incluir una solución.');
+export function parseLevelManifestPayload(
+  input: unknown,
+): LevelManifestPayload {
+  if (!input || typeof input !== 'object') {
+    throw new Error(
+      'La solicitud debe incluir el nombre y la solución original.',
+    );
   }
 
-  const rawSolution = (input as { solution: unknown }).solution;
-  if (!Array.isArray(rawSolution) || rawSolution.length === 0) {
-    throw new Error('La solución debe contener al menos un hexágono.');
+  const { name: rawName, originalSolution: rawSolution } = input as Record<
+    string,
+    unknown
+  >;
+  const name = normalizeLevelName(rawName);
+
+  if (
+    !rawSolution ||
+    typeof rawSolution !== 'object' ||
+    Array.isArray(rawSolution)
+  ) {
+    throw new Error('La solicitud debe incluir la solución original.');
   }
-  if (rawSolution.length > BOARD_TILES.length) {
-    throw new Error('La solución contiene demasiados hexágonos.');
+
+  const entries = Object.entries(rawSolution);
+  if (entries.length === 0) {
+    throw new Error('La solución original debe contener al menos un hexágono.');
+  }
+  if (entries.length > BOARD_TILES.length) {
+    throw new Error('La solución original contiene demasiados hexágonos.');
   }
 
-  const coordinates = new Set<string>();
-  return rawSolution.map((rawEntry) => {
-    if (!rawEntry || typeof rawEntry !== 'object') {
-      throw new Error('Cada pieza debe incluir una coordenada y un color.');
-    }
-
-    const { coordinate, color } = rawEntry as Record<string, unknown>;
-    if (!coordinate || typeof coordinate !== 'object') {
-      throw new Error('Cada pieza debe incluir una coordenada válida.');
-    }
-
-    const { q, r } = coordinate as Record<string, unknown>;
-    if (!Number.isInteger(q) || !Number.isInteger(r) || !isColorId(color)) {
-      throw new Error('Cada pieza debe incluir q, r y un color válidos.');
-    }
-
-    const normalizedCoordinate = { q: q as number, r: r as number };
-    const key = coordinateKey(normalizedCoordinate);
+  const originalSolution: Placements = {};
+  for (const [key, color] of entries) {
     if (!BOARD_KEYS.has(key)) {
-      throw new Error(
-        `La coordenada (${normalizedCoordinate.q},${normalizedCoordinate.r}) no existe.`,
-      );
+      throw new Error(`La coordenada ${key} no existe.`);
     }
-    if (coordinates.has(key)) {
-      throw new Error(
-        `La coordenada (${normalizedCoordinate.q},${normalizedCoordinate.r}) está repetida.`,
-      );
+    if (!isColorId(color)) {
+      throw new Error(`La coordenada ${key} debe tener un color válido.`);
     }
-    coordinates.add(key);
+    originalSolution[key] = color;
+  }
 
-    return { coordinate: normalizedCoordinate, color };
-  });
+  return { name, originalSolution };
 }

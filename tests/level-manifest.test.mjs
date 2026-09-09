@@ -2,48 +2,70 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  parseSolutionPayload,
-  placementsToSolution,
-  solutionToPlacements,
+  levelNameToFilename,
+  parseLevelManifestPayload,
+  placementsToOriginalSolution,
 } from '../lib/level-manifest.ts';
 
-test('la solución contiene únicamente coordenada y color', () => {
+test('la solución original usa coordenadas como claves y colores como valores', () => {
   const placements = {
     '0,0': 'celeste',
     '1,0': 'rojo',
   };
-  const solution = placementsToSolution(placements);
+  const originalSolution = placementsToOriginalSolution(placements);
 
-  assert.deepEqual(solution, [
-    { coordinate: { q: 0, r: 0 }, color: 'celeste' },
-    { coordinate: { q: 1, r: 0 }, color: 'rojo' },
-  ]);
-  solution.forEach((entry) => {
-    assert.deepEqual(Object.keys(entry).sort(), ['color', 'coordinate']);
-    assert.deepEqual(Object.keys(entry.coordinate).sort(), ['q', 'r']);
+  assert.deepEqual(originalSolution, {
+    '0,0': 'celeste',
+    '1,0': 'rojo',
   });
-  assert.deepEqual(solutionToPlacements(solution), placements);
+  assert.deepEqual(
+    parseLevelManifestPayload({
+      name: 'Puente celeste',
+      originalSolution,
+    }),
+    { name: 'Puente celeste', originalSolution: placements },
+  );
 });
 
-test('rechaza soluciones vacías, repetidas o fuera del tablero', () => {
-  assert.throws(() => parseSolutionPayload({ solution: [] }), /al menos/);
+test('conserva el nombre legible en un nombre seguro de archivo', () => {
+  assert.equal(
+    levelNameToFilename('  Puente Céleste  '),
+    'Puente Céleste.json',
+  );
+  assert.equal(levelNameToFilename('Cruce / azul'), 'Cruce - azul.json');
+});
+
+test('rechaza nombres o soluciones originales inválidas', () => {
   assert.throws(
     () =>
-      parseSolutionPayload({
-        solution: [
-          { coordinate: { q: 0, r: 0 }, color: 'celeste' },
-          { coordinate: { q: 0, r: 0 }, color: 'azul' },
-        ],
+      parseLevelManifestPayload({
+        name: '   ',
+        originalSolution: { '0,0': 'celeste' },
       }),
-    /repetida/,
+    /nombre/,
   );
   assert.throws(
     () =>
-      parseSolutionPayload({
-        solution: [
-          { coordinate: { q: 99, r: 99 }, color: 'celeste' },
-        ],
+      parseLevelManifestPayload({
+        name: 'Vacío',
+        originalSolution: {},
+      }),
+    /al menos/,
+  );
+  assert.throws(
+    () =>
+      parseLevelManifestPayload({
+        name: 'Fuera del tablero',
+        originalSolution: { '99,99': 'celeste' },
       }),
     /no existe/,
+  );
+  assert.throws(
+    () =>
+      parseLevelManifestPayload({
+        name: 'Color inválido',
+        originalSolution: { '0,0': 'rosa' },
+      }),
+    /color válido/,
   );
 });
