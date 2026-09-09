@@ -161,6 +161,7 @@ a:focus-visible {
   letter-spacing: 0.08em;
 }
 
+.general-rules-panel,
 .rules-panel,
 .level-sidebar {
   position: absolute;
@@ -176,6 +177,12 @@ a:focus-visible {
   flex-direction: column;
   overflow: hidden;
   padding: 0;
+}
+
+.general-rules-panel {
+  left: 28px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .level-sidebar {

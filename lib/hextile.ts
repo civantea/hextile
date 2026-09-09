@@ -49,6 +49,7 @@ export type LevelDefinition = {
   inventory: Partial<Record<ColorId, number>>;
   fixedPlacements: Placements;
   rules: {
+    general: GeneralRule[];
     colors: Array<{
       color: ColorId;
       text: string;
@@ -183,6 +184,7 @@ export const LEVELS: LevelDefinition[] = [
       '0,-1': 'celeste',
     },
     rules: {
+      general: GENERAL_RULES,
       colors: [
         {
           color: 'celeste',
@@ -206,6 +208,7 @@ export const GENERATOR_TEMPLATE: LevelDefinition = {
   },
   fixedPlacements: {},
   rules: {
+    general: GENERATOR_GENERAL_RULES,
     colors: [
       {
         color: 'celeste',

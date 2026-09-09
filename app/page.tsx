@@ -22,8 +22,6 @@ import {
   BOARD_CENTER_INDEX,
   BOARD_TILES,
   COLOR_DEFINITIONS,
-  GENERAL_RULES,
-  GENERATOR_GENERAL_RULES,
   GENERATOR_TEMPLATE,
   LEVELS,
   getPlacementCounts,
@@ -191,7 +189,7 @@ function BoardScreen({
   mode?: ScreenMode;
 }) {
   const isGenerator = mode === 'generator';
-  const generalRules = isGenerator ? GENERATOR_GENERAL_RULES : GENERAL_RULES;
+  const generalRules = level.rules.general;
   const levelColors = useMemo(
     () => Object.keys(level.inventory) as ColorId[],
     [level],
@@ -620,83 +618,164 @@ function BoardScreen({
         <h1>{level.label}</h1>
       </header>
 
-      <aside className="rules-panel sidebar-card" aria-label="Reglamento">
-        <div
-          className="rules-tabs"
-          role="tablist"
-          aria-label="Secciones del reglamento"
-        >
-          <button
-            className="rules-tab"
-            type="button"
-            role="tab"
-            id="general-rules-tab"
-            aria-selected={activeRulesTab === 'general'}
-            aria-controls="general-rules-panel"
-            data-active={activeRulesTab === 'general' ? 'true' : 'false'}
-            onClick={() => setActiveRulesTab('general')}
+      {isGenerator ? (
+        <aside className="rules-panel sidebar-card" aria-label="Reglamento">
+          <div
+            className="rules-tabs"
+            role="tablist"
+            aria-label="Secciones del reglamento"
           >
-            Uso general
-          </button>
-          <button
-            className="rules-tab"
-            type="button"
-            role="tab"
-            id="color-rules-tab"
-            aria-selected={activeRulesTab === 'colors'}
-            aria-controls="color-rules-panel"
-            data-active={activeRulesTab === 'colors' ? 'true' : 'false'}
-            onClick={() => setActiveRulesTab('colors')}
-          >
-            Reglas de colores
-          </button>
-          <button
-            className="rules-tab"
-            type="button"
-            role="tab"
-            id="validate-rules-tab"
-            aria-selected={activeRulesTab === 'validate'}
-            aria-controls="validate-rules-panel"
-            data-active={activeRulesTab === 'validate' ? 'true' : 'false'}
-            onClick={() => setActiveRulesTab('validate')}
-          >
-            Validar
-          </button>
-        </div>
+            <button
+              className="rules-tab"
+              type="button"
+              role="tab"
+              id="general-rules-tab"
+              aria-selected={activeRulesTab === 'general'}
+              aria-controls="general-rules-panel"
+              data-active={activeRulesTab === 'general' ? 'true' : 'false'}
+              onClick={() => setActiveRulesTab('general')}
+            >
+              Uso general
+            </button>
+            <button
+              className="rules-tab"
+              type="button"
+              role="tab"
+              id="color-rules-tab"
+              aria-selected={activeRulesTab === 'colors'}
+              aria-controls="color-rules-panel"
+              data-active={activeRulesTab === 'colors' ? 'true' : 'false'}
+              onClick={() => setActiveRulesTab('colors')}
+            >
+              Reglas de colores
+            </button>
+            <button
+              className="rules-tab"
+              type="button"
+              role="tab"
+              id="validate-rules-tab"
+              aria-selected={activeRulesTab === 'validate'}
+              aria-controls="validate-rules-panel"
+              data-active={activeRulesTab === 'validate' ? 'true' : 'false'}
+              onClick={() => setActiveRulesTab('validate')}
+            >
+              Validar
+            </button>
+          </div>
 
-        {activeRulesTab === 'general' ? (
-          <section
-            className="rules-tab-panel"
-            id="general-rules-panel"
-            role="tabpanel"
-            aria-labelledby="general-rules-tab"
-          >
-            <h2>Uso general</h2>
-            <ol className="rules-list">
-              {generalRules.map((rule) => (
-                <li key={rule.text}>
-                  {rule.text}
-                  {rule.details ? (
-                    <ul className="rule-details">
-                      {rule.details.map((detail) => (
-                        <li key={detail}>{detail}</li>
-                      ))}
-                    </ul>
-                  ) : null}
+          {activeRulesTab === 'general' ? (
+            <section
+              className="rules-tab-panel"
+              id="general-rules-panel"
+              role="tabpanel"
+              aria-labelledby="general-rules-tab"
+            >
+              <h2>Uso general</h2>
+              <ol className="rules-list">
+                {generalRules.map((rule) => (
+                  <li key={rule.text}>
+                    {rule.text}
+                    {rule.details ? (
+                      <ul className="rule-details">
+                        {rule.details.map((detail) => (
+                          <li key={detail}>{detail}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+
+          {activeRulesTab === 'colors' ? (
+            <section
+              className="rules-tab-panel"
+              id="color-rules-panel"
+              role="tabpanel"
+              aria-labelledby="color-rules-tab"
+            >
+              <h2>Reglas de colores</h2>
+              <ul className="color-rules-list">
+                {level.rules.colors.map((rule) => {
+                  const definition = COLOR_DEFINITIONS[rule.color];
+                  return (
+                    <li key={rule.color}>
+                      <span
+                        className="rule-color-swatch"
+                        style={{ backgroundColor: definition.cssColor }}
+                        aria-hidden="true"
+                      />
+                      <span>
+                        <strong>{definition.label}:</strong> {rule.text}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+
+          {activeRulesTab === 'validate' ? (
+            <section
+              className="rules-tab-panel validate-rules-panel"
+              id="validate-rules-panel"
+              role="tabpanel"
+              aria-labelledby="validate-rules-tab"
+            >
+              <h2>Primer paso: validar</h2>
+              <ol className="validation-flow-list">
+                <li>Arma una solución en el tablero.</li>
+                <li>
+                  Presiona Validar para revisar todos los hexágonos coloreados.
                 </li>
-              ))}
-            </ol>
-          </section>
-        ) : null}
+                <li>
+                  Cada hexágono debe mostrar ✅. Si alguno muestra ❌, corrige
+                  la distribución y valida de nuevo.
+                </li>
+                <li>
+                  Cuando todos muestran ✅, se completa este paso, aparece el
+                  siguiente requisito y se habilita Guardar solución.
+                </li>
+              </ol>
+            </section>
+          ) : null}
+        </aside>
+      ) : (
+        <aside
+          className="general-rules-panel sidebar-card"
+          aria-labelledby="general-rules-title"
+        >
+          <h2 id="general-rules-title">Reglamento general</h2>
+          <ol className="rules-list">
+            {generalRules.map((rule) => (
+              <li key={rule.text}>
+                {rule.text}
+                {rule.details ? (
+                  <ul className="rule-details">
+                    {rule.details.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </aside>
+      )}
 
-        {activeRulesTab === 'colors' ? (
+      <aside
+        className="level-sidebar"
+        aria-label={
+          isGenerator ? 'Contadores del generador' : 'Colores disponibles'
+        }
+      >
+        {!isGenerator ? (
           <section
-            className="rules-tab-panel"
-            id="color-rules-panel"
-            role="tabpanel"
-            aria-labelledby="color-rules-tab"
+            className="color-rules-panel sidebar-card"
+            aria-labelledby="color-rules-title"
           >
-            <h2>Reglas de colores</h2>
+            <h2 id="color-rules-title">Reglamento de colores</h2>
             <ul className="color-rules-list">
               {level.rules.colors.map((rule) => {
                 const definition = COLOR_DEFINITIONS[rule.color];
@@ -717,45 +796,6 @@ function BoardScreen({
           </section>
         ) : null}
 
-        {activeRulesTab === 'validate' ? (
-          <section
-            className="rules-tab-panel validate-rules-panel"
-            id="validate-rules-panel"
-            role="tabpanel"
-            aria-labelledby="validate-rules-tab"
-          >
-            <h2>Primer paso: validar</h2>
-            <ol className="validation-flow-list">
-              <li>Arma una solución en el tablero.</li>
-              <li>
-                Presiona Validar para revisar todos los hexágonos coloreados.
-              </li>
-              <li>
-                Cada hexágono debe mostrar ✅. Si alguno muestra ❌, corrige la
-                distribución y valida de nuevo.
-              </li>
-              {isGenerator ? (
-                <li>
-                  Cuando todos muestran ✅, se completa este paso, aparece el
-                  siguiente requisito y se habilita Guardar solución.
-                </li>
-              ) : (
-                <li>
-                  La solución es válida cuando todos muestran ✅ y no quedan
-                  colores disponibles.
-                </li>
-              )}
-            </ol>
-          </section>
-        ) : null}
-      </aside>
-
-      <aside
-        className="level-sidebar"
-        aria-label={
-          isGenerator ? 'Contadores del generador' : 'Colores disponibles'
-        }
-      >
         <section
           className="inventory-panel sidebar-card"
           aria-labelledby={

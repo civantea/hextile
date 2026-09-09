@@ -169,6 +169,40 @@ test('cada nivel describe exactamente sus colores disponibles', () => {
   });
 });
 
+test('los niveles jugables conservan el reglamento vigente de producción', () => {
+  assert.deepEqual(GENERAL_RULES, [
+    {
+      text: 'Elige un hexágono blanco y asígnale un color disponible.',
+    },
+    {
+      text: 'Solo puedes pintar un hexágono blanco que comparta un lado con al menos un hexágono coloreado.',
+    },
+    {
+      text: 'Consulta cuántas piezas quedan de cada color en la sección Colores disponibles.',
+    },
+    {
+      text: 'Usa todas las piezas: los contadores deben llegar a cero.',
+    },
+    {
+      text: 'Un hexágono coloreado ya no puede modificarse.',
+    },
+    {
+      text: 'Presiona Validar para revisar cada hexágono coloreado, tanto inicial como colocado por ti.',
+      details: ['✅ Cumple las reglas.', '❌ No cumple las reglas.'],
+    },
+    {
+      text: 'Una solución es válida cuando todos los hexágonos coloreados muestran ✅ y no quedan colores disponibles.',
+    },
+    {
+      text: 'El botón Reiniciar borra tus piezas y las marcas de validación, pero conserva los hexágonos iniciales.',
+    },
+  ]);
+  LEVELS.forEach((level) => {
+    assert.strictEqual(level.rules.general, GENERAL_RULES);
+  });
+  assert.strictEqual(GENERATOR_TEMPLATE.rules.general, GENERATOR_GENERAL_RULES);
+});
+
 test('la solución de un nivel exige marcas verdes e inventario agotado', () => {
   assert.match(GENERAL_RULES[6].text, /✅/);
   assert.match(GENERAL_RULES[6].text, /no quedan colores disponibles/);
