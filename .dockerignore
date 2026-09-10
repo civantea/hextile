@@ -1,0 +1,9 @@
+.git
+.next
+.wrangler
+coverage
+dist
+node_modules
+*.tsbuildinfo
+.env*
+npm-debug.log*

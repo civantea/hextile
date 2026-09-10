@@ -384,7 +384,6 @@ test('ordena catálogos desplegados por número y pendientes por nombre', () => 
     {
       stageName: 'etapa-1',
       stage: 1,
-      fileName: 'Zeta.json',
       id: 'zeta',
       name: 'Zeta',
       deployed: true,
@@ -393,7 +392,6 @@ test('ordena catálogos desplegados por número y pendientes por nombre', () => 
     {
       stageName: 'etapa-1',
       stage: 1,
-      fileName: 'Árbol.json',
       id: 'arbol',
       name: 'Árbol',
       deployed: true,

@@ -1,0 +1,43 @@
+name: hextile
+
+services:
+  mongodb:
+    image: mongo:8.0.1
+    container_name: hextile-mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: hextile-node
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      HEXTILE_DOCKER: "true"
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: hextile
+      MONGODB_LEVELS_COLLECTION: levels
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+
+volumes:
+  mongodb-data:
+    external: true
+    name: hextile-mongodb-data
+  node-modules:
+    name: hextile-node-modules

@@ -9,7 +9,6 @@ import type { LevelManifest } from './level-manifest.ts';
 export type LevelCatalogEntry = {
   stageName: string;
   stage: number;
-  fileName: string;
   id: string;
   name: string;
   deployed: boolean;

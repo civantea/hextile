@@ -86,7 +86,6 @@ type RulesTab = 'general' | 'colors' | 'validate';
 type SavedLevelReference = {
   id: string;
   name: string;
-  fileName: string;
 };
 
 type SaveStatus = {
@@ -96,25 +95,11 @@ type SaveStatus = {
 
 const LEVEL_CATALOG_PATH = '/__hextile/levels';
 const LEVEL_CATALOG_CHANGED_EVENT = 'hextile-level-catalog-changed';
-const BUNDLED_LEVEL_MANIFESTS = Object.values(
-  import.meta.glob<LevelManifest>('../niveles/**/*.json', {
-    eager: true,
-    import: 'default',
-  }),
-);
 
 function sortPlayableLevels(levels: LevelDefinition[]) {
   return levels.sort(
     (left, right) =>
       left.stage - right.stage || left.levelNumber - right.levelNumber,
-  );
-}
-
-function getBundledPlayableLevels() {
-  return sortPlayableLevels(
-    BUNDLED_LEVEL_MANIFESTS.filter((manifest) => manifest.deployed).map(
-      levelManifestToDefinition,
-    ),
   );
 }
 
@@ -132,26 +117,40 @@ function useHashRoute() {
 }
 
 function usePlayableLevels() {
-  const [levels, setLevels] = useState<LevelDefinition[]>(
-    getBundledPlayableLevels,
-  );
+  const [levels, setLevels] = useState<LevelDefinition[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshLevels = useCallback(async () => {
+    setIsLoading(true);
     try {
       const response = await fetch(`${LEVEL_CATALOG_PATH}?deployed=true`, {
         cache: 'no-store',
       });
       const result = (await response.json()) as {
         levels?: LevelManifest[];
+        error?: string;
       };
-      if (!response.ok || !Array.isArray(result.levels)) return;
+      if (!response.ok || !Array.isArray(result.levels)) {
+        throw new Error(
+          result.error ?? 'No se pudieron cargar los niveles desde MongoDB.',
+        );
+      }
 
       const storedLevels = sortPlayableLevels(
         result.levels.map(levelManifestToDefinition),
       );
       setLevels(storedLevels);
-    } catch {
-      setLevels(getBundledPlayableLevels());
+      setError(null);
+    } catch (requestError) {
+      setLevels([]);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No se pudieron cargar los niveles desde MongoDB.',
+      );
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -164,7 +163,7 @@ function usePlayableLevels() {
     };
   }, [refreshLevels]);
 
-  return levels;
+  return { levels, isLoading, error };
 }
 
 function WelcomeScreen() {
@@ -185,7 +184,15 @@ function WelcomeScreen() {
   );
 }
 
-function PlayScreen({ levels }: { levels: LevelDefinition[] }) {
+function PlayScreen({
+  levels,
+  isLoading,
+  error,
+}: {
+  levels: LevelDefinition[];
+  isLoading: boolean;
+  error: string | null;
+}) {
   const stageGroups = Array.from(
     levels.reduce<Map<number, LevelDefinition[]>>((groups, level) => {
       const stageLevels = groups.get(level.stage) ?? [];
@@ -203,6 +210,17 @@ function PlayScreen({ levels }: { levels: LevelDefinition[] }) {
       <div className="home-panel">
         <h1 className="home-title">HEXTILE</h1>
         <nav aria-label="Niveles disponibles" className="level-list">
+          {isLoading ? (
+            <p className="catalog-message">Cargando niveles…</p>
+          ) : null}
+          {!isLoading && error ? (
+            <p className="catalog-message catalog-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {!isLoading && !error && stageGroups.length === 0 ? (
+            <p className="catalog-message">No hay niveles disponibles.</p>
+          ) : null}
           {stageGroups.map(([stage, stageLevels]) => (
             <section className="level-stage" key={stage}>
               <h2 className="level-stage-heading">Etapa {stage}</h2>
@@ -890,23 +908,21 @@ function BoardScreen({
       });
       const result = (await response.json()) as {
         id?: string;
-        fileName?: string;
         error?: string;
       };
-      if (!response.ok || !result.id || !result.fileName) {
+      if (!response.ok || !result.id) {
         throw new Error(result.error ?? 'No se pudo guardar la solución.');
       }
 
       setSavedLevel({
         id: result.id,
         name: normalizedName,
-        fileName: result.fileName,
       });
       setBuildSessionState('solution-saved');
       levelNameDialogRef.current?.close();
       setSaveStatus({
         tone: 'success',
-        message: `Solución original guardada en niveles/${result.fileName}.`,
+        message: 'Solución original guardada en MongoDB.',
       });
     } catch (error) {
       setLevelNameError(
@@ -1723,7 +1739,7 @@ export default function Home() {
   const hash = useHashRoute();
   const playableLevels = usePlayableLevels();
   if (hash === '#/play') {
-    return <PlayScreen levels={playableLevels} />;
+    return <PlayScreen {...playableLevels} />;
   }
 
   if (hash === '#/build') {
@@ -1750,7 +1766,7 @@ export default function Home() {
 
   const levelMatch = /^#\/nivel\/(\d+)\/(\d+)$/.exec(hash);
   const level = levelMatch
-    ? playableLevels.find(
+    ? playableLevels.levels.find(
         (candidate) =>
           candidate.stage === Number(levelMatch[1]) &&
           candidate.levelNumber === Number(levelMatch[2]),

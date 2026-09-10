@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
@@ -9,7 +7,6 @@ import { defineConfig, type Plugin } from 'vite';
 import hostingConfig from './.openai/hosting.json';
 import {
   initialStateMatchesOriginalSolution,
-  levelNameToFilename,
   parseLevelInitialStatePayload,
   parseLevelManifestPayload,
   type LevelInitialStatePayload,
@@ -26,6 +23,15 @@ import {
   sortLevelCatalogEntries,
   type LevelCatalogEntry,
 } from './lib/level-catalog';
+import {
+  closeMongoLevelStore,
+  insertLevelDocument,
+  isDuplicateLevelKeyError,
+  listLevelStageNumbers,
+  readLevelDocumentById,
+  readLevelDocuments,
+  replaceLevelDocuments,
+} from './lib/mongodb-level-store';
 import { validatePlacements } from './lib/hextile';
 import type { LevelManifest } from './lib/level-manifest';
 
@@ -36,14 +42,13 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
+const isDockerDevelopment = process.env.HEXTILE_DOCKER === 'true';
 const SAVE_LEVEL_PATH = '/__hextile/save-level';
 const LEVEL_CATALOG_PATH = '/__hextile/levels';
 const MAX_REQUEST_SIZE = 128 * 1024;
 
 type StoredLevel = {
   stageName: string;
-  fileName: string;
-  filePath: string;
   manifest: LevelManifest;
 };
 
@@ -52,7 +57,7 @@ function stageNameToNumber(stageName: string) {
   const stage = match ? Number(match[1]) : 0;
   if (!Number.isInteger(stage) || stage < 1) {
     throw new Error(
-      `La carpeta ${stageName} debe usar el formato etapa-{número}.`,
+      `La etapa ${stageName} debe usar el formato etapa-{número}.`,
     );
   }
   return stage;
@@ -103,60 +108,36 @@ async function readJsonBody(request: import('node:http').IncomingMessage) {
 }
 
 async function listStageNames() {
-  const levelsDirectory = resolve(process.cwd(), 'niveles');
-  const entries = await readdir(levelsDirectory, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-    .map((entry) => entry.name)
-    .sort((left, right) => stageNameToNumber(left) - stageNameToNumber(right));
+  return (await listLevelStageNumbers()).map((stage) => `etapa-${stage}`);
 }
 
 async function readStageLevels(stageName: string): Promise<StoredLevel[]> {
-  const stages = await listStageNames();
-  if (!stages.includes(stageName)) {
+  const stage = stageNameToNumber(stageName);
+  const levels = await readLevelDocuments(stage);
+  if (levels.length === 0) {
     throw new Error('La etapa seleccionada no existe.');
   }
 
-  const stageDirectory = resolve(process.cwd(), 'niveles', stageName);
-  const files = await readdir(stageDirectory, { withFileTypes: true });
-  const jsonFiles = files
-    .filter(
-      (file) =>
-        file.isFile() &&
-        file.name.endsWith('.json') &&
-        !file.name.endsWith('.schema.json'),
-    )
-    .sort((left, right) => left.name.localeCompare(right.name, 'es'));
-
-  return Promise.all(
-    jsonFiles.map(async (file) => {
-      const filePath = resolve(stageDirectory, file.name);
-      const manifest: unknown = JSON.parse(await readFile(filePath, 'utf8'));
-      assertLevelManifestSchema(manifest, { requireComplete: true });
-      return {
-        stageName,
-        fileName: file.name,
-        filePath,
-        manifest,
-      };
-    }),
-  );
+  return levels.map((manifest) => {
+    assertLevelManifestSchema(manifest, { requireComplete: true });
+    return { stageName, manifest };
+  });
 }
 
 async function readAllStageLevels() {
-  const stages = await listStageNames();
-  return (await Promise.all(stages.map(readStageLevels))).flat();
+  return (await readLevelDocuments()).map((manifest) => ({
+    stageName: `etapa-${manifest.stage}`,
+    manifest,
+  }));
 }
 
 function toCatalogEntry({
   stageName,
-  fileName,
   manifest,
 }: StoredLevel): LevelCatalogEntry {
   return {
     stageName,
     stage: manifest.stage,
-    fileName,
     id: manifest.id,
     name: manifest.name,
     deployed: manifest.deployed,
@@ -213,35 +194,24 @@ async function deployStoredLevel(input: unknown) {
     },
     { requireComplete: true },
   );
-  await Promise.all([
-    writeFile(
-      target.filePath,
-      `${JSON.stringify(manifest, null, 2)}\n`,
-      'utf8',
-    ),
-    ...allLevels
-      .filter(
-        (level) =>
-          level.manifest.id !== target.manifest.id &&
-          level.manifest.deployed &&
-          level.manifest.stage === stageNumber,
-      )
-      .map((level) => {
-        const assignedLevelNumber = assignments.get(level.manifest.id);
-        if (!assignedLevelNumber) {
-          throw new Error('No se pudo recalcular el orden de Play.');
-        }
-        const shiftedManifest = createLevelManifest(
-          { ...level.manifest, levelNumber: assignedLevelNumber },
-          { requireComplete: true },
-        );
-        return writeFile(
-          level.filePath,
-          `${JSON.stringify(shiftedManifest, null, 2)}\n`,
-          'utf8',
-        );
-      }),
-  ]);
+  const shiftedManifests = allLevels
+    .filter(
+      (level) =>
+        level.manifest.id !== target.manifest.id &&
+        level.manifest.deployed &&
+        level.manifest.stage === stageNumber,
+    )
+    .map((level) => {
+      const assignedLevelNumber = assignments.get(level.manifest.id);
+      if (!assignedLevelNumber) {
+        throw new Error('No se pudo recalcular el orden de Play.');
+      }
+      return createLevelManifest(
+        { ...level.manifest, levelNumber: assignedLevelNumber },
+        { requireComplete: true },
+      );
+    });
+  await replaceLevelDocuments([manifest, ...shiftedManifests]);
 
   return toCatalogEntry({ ...target, manifest });
 }
@@ -285,35 +255,24 @@ async function undeployStoredLevel(input: unknown) {
     ),
   );
 
-  await Promise.all([
-    writeFile(
-      target.filePath,
-      `${JSON.stringify(removedManifest, null, 2)}\n`,
-      'utf8',
-    ),
-    ...allLevels
-      .filter(
-        (level) =>
-          level.manifest.id !== target.manifest.id &&
-          level.manifest.deployed &&
-          level.manifest.stage === stageNumber,
-      )
-      .map((level) => {
-        const levelNumber = assignments.get(level.manifest.id);
-        if (!levelNumber) {
-          throw new Error('No se pudo recalcular el orden de Play.');
-        }
-        const manifest = createLevelManifest(
-          { ...level.manifest, levelNumber },
-          { requireComplete: true },
-        );
-        return writeFile(
-          level.filePath,
-          `${JSON.stringify(manifest, null, 2)}\n`,
-          'utf8',
-        );
-      }),
-  ]);
+  const compactedManifests = allLevels
+    .filter(
+      (level) =>
+        level.manifest.id !== target.manifest.id &&
+        level.manifest.deployed &&
+        level.manifest.stage === stageNumber,
+    )
+    .map((level) => {
+      const levelNumber = assignments.get(level.manifest.id);
+      if (!levelNumber) {
+        throw new Error('No se pudo recalcular el orden de Play.');
+      }
+      return createLevelManifest(
+        { ...level.manifest, levelNumber },
+        { requireComplete: true },
+      );
+    });
+  await replaceLevelDocuments([removedManifest, ...compactedManifests]);
 
   return toCatalogEntry({ ...target, manifest: removedManifest });
 }
@@ -322,26 +281,18 @@ async function writeLevelManifest({
   name,
   originalSolution,
 }: LevelManifestPayload) {
-  const levelsDirectory = resolve(process.cwd(), 'niveles');
-  await mkdir(levelsDirectory, { recursive: true });
-
   const id = randomUUID();
-  const fileName = levelNameToFilename(name);
   const manifest = createLevelManifest({ id, name, originalSolution });
   try {
-    await writeFile(
-      resolve(levelsDirectory, fileName),
-      `${JSON.stringify(manifest, null, 2)}\n`,
-      { encoding: 'utf8', flag: 'wx' },
-    );
+    await insertLevelDocument(manifest);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+    if (isDuplicateLevelKeyError(error)) {
       throw new Error('Ya existe un nivel con ese nombre. Elige otro.');
     }
     throw error;
   }
 
-  return { id, fileName };
+  return { id };
 }
 
 async function completeLevelManifest({
@@ -349,57 +300,36 @@ async function completeLevelManifest({
   initialDistribution,
   initialHand,
 }: LevelInitialStatePayload) {
-  const levelsDirectory = resolve(process.cwd(), 'niveles');
-  const files = await readdir(levelsDirectory, { withFileTypes: true });
-
-  for (const file of files) {
-    if (!file.isFile() || !file.name.endsWith('.json')) continue;
-
-    const filePath = resolve(levelsDirectory, file.name);
-    let stored: unknown;
-    try {
-      stored = JSON.parse(await readFile(filePath, 'utf8'));
-    } catch {
-      continue;
-    }
-
-    if (
-      !stored ||
-      typeof stored !== 'object' ||
-      (stored as { id?: unknown }).id !== id
-    ) {
-      continue;
-    }
-
-    assertLevelManifestSchema(stored);
-    const original = parseLevelManifestPayload(stored);
-    if (
-      !initialStateMatchesOriginalSolution(
-        original.originalSolution,
-        initialDistribution,
-        initialHand,
-      )
-    ) {
-      throw new Error(
-        'El estado inicial no corresponde con la solución original guardada.',
-      );
-    }
-
-    const manifest = createLevelManifest(
-      {
-        id,
-        name: original.name,
-        originalSolution: original.originalSolution,
-        initialDistribution,
-        initialHand,
-      },
-      { requireComplete: true },
-    );
-    await writeFile(filePath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
-    return { id, fileName: file.name };
+  const stored = await readLevelDocumentById(id);
+  if (!stored) {
+    throw new Error('No se encontró el nivel guardado en MongoDB.');
   }
 
-  throw new Error('No se encontró el archivo del nivel guardado.');
+  const original = parseLevelManifestPayload(stored);
+  if (
+    !initialStateMatchesOriginalSolution(
+      original.originalSolution,
+      initialDistribution,
+      initialHand,
+    )
+  ) {
+    throw new Error(
+      'El estado inicial no corresponde con la solución original guardada.',
+    );
+  }
+
+  const manifest = createLevelManifest(
+    {
+      id,
+      name: original.name,
+      originalSolution: original.originalSolution,
+      initialDistribution,
+      initialHand,
+    },
+    { requireComplete: true },
+  );
+  await replaceLevelDocuments([manifest]);
+  return { id };
 }
 
 function levelManifestWriter(): Plugin {
@@ -407,6 +337,10 @@ function levelManifestWriter(): Plugin {
     name: 'hextile-level-manifest-writer',
     apply: 'serve',
     configureServer(server) {
+      server.httpServer?.once('close', () => {
+        void closeMongoLevelStore();
+      });
+
       server.middlewares.use(LEVEL_CATALOG_PATH, async (request, response) => {
         try {
           if (request.method === 'GET') {
@@ -554,9 +488,10 @@ export default defineConfig(async () => {
 
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
-      : undefined,
+    server:
+      isCodexSeatbeltSandbox || isDockerDevelopment
+        ? { watch: { useFsEvents: false, usePolling: true } }
+        : undefined,
     plugins: [
       levelManifestWriter(),
       vinext(),
