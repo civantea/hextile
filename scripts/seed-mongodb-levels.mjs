@@ -23,19 +23,14 @@ async function readLevelFixtures() {
     }),
   );
 
-  const ids = new Set();
   const names = new Set();
   for (const manifest of manifests) {
     const comparableName = manifest.name
       .normalize('NFC')
       .toLocaleLowerCase('es');
-    if (ids.has(manifest.id)) {
-      throw new Error(`El identificador ${manifest.id} está repetido.`);
-    }
     if (names.has(comparableName)) {
       throw new Error(`El nombre ${manifest.name} está repetido.`);
     }
-    ids.add(manifest.id);
     names.add(comparableName);
   }
 

@@ -44,7 +44,7 @@ import {
   MAX_LEVEL_NAME_LENGTH,
   normalizeLevelName,
   placementsToCoordinateMap,
-  type LevelManifest,
+  type LevelDocument,
 } from '@/lib/level-manifest';
 import {
   levelManifestToDefinition,
@@ -84,7 +84,7 @@ type BuildSessionState =
 type RulesTab = 'general' | 'colors' | 'validate';
 
 type SavedLevelReference = {
-  id: string;
+  _id: string;
   name: string;
 };
 
@@ -128,7 +128,7 @@ function usePlayableLevels() {
         cache: 'no-store',
       });
       const result = (await response.json()) as {
-        levels?: LevelManifest[];
+        levels?: LevelDocument[];
         error?: string;
       };
       if (!response.ok || !Array.isArray(result.levels)) {
@@ -389,7 +389,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         body: JSON.stringify({
           action,
           stage: pendingLevel.stageName,
-          id: pendingLevel.id,
+          _id: pendingLevel._id,
           ...(!isRemoving ? { levelNumber: selectedPosition } : {}),
         }),
       });
@@ -406,7 +406,9 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
         );
       }
 
-      const remaining = levels.filter((level) => level.id !== result.level?.id);
+      const remaining = levels.filter(
+        (level) => level._id !== result.level?._id,
+      );
       setLevels(remaining);
       confirmationDialogRef.current?.close();
       setPendingLevel(null);
@@ -500,7 +502,7 @@ function LevelCatalogScreen({ action }: { action: 'deploy' | 'undeploy' }) {
                 <button
                   className="catalog-entry catalog-level-entry"
                   type="button"
-                  key={level.id}
+                  key={level._id}
                   data-deployed={level.deployed ? 'true' : 'false'}
                   data-selectable={isRemoving ? 'true' : undefined}
                   disabled={isRemoving ? !level.deployed : level.deployed}
@@ -907,15 +909,15 @@ function BoardScreen({
         }),
       });
       const result = (await response.json()) as {
-        id?: string;
+        _id?: string;
         error?: string;
       };
-      if (!response.ok || !result.id) {
+      if (!response.ok || !result._id) {
         throw new Error(result.error ?? 'No se pudo guardar la solución.');
       }
 
       setSavedLevel({
-        id: result.id,
+        _id: result._id,
         name: normalizedName,
       });
       setBuildSessionState('solution-saved');
@@ -945,7 +947,7 @@ function BoardScreen({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: savedLevel.id,
+          _id: savedLevel._id,
           initialDistribution: placementsToCoordinateMap(
             playerPlacementsRef.current,
           ),
@@ -953,10 +955,10 @@ function BoardScreen({
         }),
       });
       const result = (await response.json()) as {
-        id?: string;
+        _id?: string;
         error?: string;
       };
-      if (!response.ok || result.id !== savedLevel.id) {
+      if (!response.ok || result._id !== savedLevel._id) {
         throw new Error(result.error ?? 'No se pudo guardar el nivel.');
       }
 

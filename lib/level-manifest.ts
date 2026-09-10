@@ -11,7 +11,6 @@ import {
 export type InitialHand = Partial<Record<ColorId, number>>;
 
 export type LevelManifest = {
-  id: string;
   name: string;
   deployed: boolean;
   stage: number;
@@ -21,13 +20,17 @@ export type LevelManifest = {
   initialHand?: InitialHand;
 };
 
+export type LevelDocument = LevelManifest & {
+  _id: string;
+};
+
 export type LevelManifestPayload = Pick<
   LevelManifest,
   'name' | 'originalSolution'
 >;
 
 export type LevelInitialStatePayload = {
-  id: string;
+  _id: string;
   initialDistribution: Placements;
   initialHand: InitialHand;
 };
@@ -146,12 +149,12 @@ export function parseLevelInitialStatePayload(
   }
 
   const {
-    id,
+    _id,
     initialDistribution: rawDistribution,
     initialHand: rawHand,
   } = input as Record<string, unknown>;
-  if (typeof id !== 'string' || !id.trim()) {
-    throw new Error('La solicitud debe incluir un identificador de nivel.');
+  if (typeof _id !== 'string' || !/^[0-9a-f]{24}$/i.test(_id.trim())) {
+    throw new Error('La solicitud debe incluir un _id de MongoDB válido.');
   }
 
   const initialDistribution = parseCoordinateMap(
@@ -184,7 +187,11 @@ export function parseLevelInitialStatePayload(
     throw new Error('La mano inicial debe contener al menos una pieza.');
   }
 
-  return { id: id.trim(), initialDistribution, initialHand };
+  return {
+    _id: _id.trim().toLowerCase(),
+    initialDistribution,
+    initialHand,
+  };
 }
 
 function countColors(placements: Placements): InitialHand {

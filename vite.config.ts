@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
@@ -12,10 +10,7 @@ import {
   type LevelInitialStatePayload,
   type LevelManifestPayload,
 } from './lib/level-manifest';
-import {
-  assertLevelManifestSchema,
-  createLevelManifest,
-} from './lib/level-schema';
+import { createLevelManifest } from './lib/level-schema';
 import {
   getAvailableLevelPositions,
   getCompactLevelNumberAssignments,
@@ -28,12 +23,12 @@ import {
   insertLevelDocument,
   isDuplicateLevelKeyError,
   listLevelStageNumbers,
-  readLevelDocumentById,
+  readLevelDocumentByObjectId,
   readLevelDocuments,
   replaceLevelDocuments,
 } from './lib/mongodb-level-store';
 import { validatePlacements } from './lib/hextile';
-import type { LevelManifest } from './lib/level-manifest';
+import type { LevelDocument, LevelManifest } from './lib/level-manifest';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   '00000000-0000-4000-8000-000000000000';
@@ -49,8 +44,22 @@ const MAX_REQUEST_SIZE = 128 * 1024;
 
 type StoredLevel = {
   stageName: string;
-  manifest: LevelManifest;
+  manifest: LevelDocument;
 };
+
+function updateLevelDocument(
+  document: LevelDocument,
+  updates: Partial<LevelManifest>,
+) {
+  const { _id, ...manifest } = document;
+  return {
+    _id,
+    ...createLevelManifest(
+      { ...manifest, ...updates },
+      { requireComplete: true },
+    ),
+  };
+}
 
 function stageNameToNumber(stageName: string) {
   const match = /^etapa-(\d+)$/i.exec(stageName);
@@ -118,10 +127,7 @@ async function readStageLevels(stageName: string): Promise<StoredLevel[]> {
     throw new Error('La etapa seleccionada no existe.');
   }
 
-  return levels.map((manifest) => {
-    assertLevelManifestSchema(manifest, { requireComplete: true });
-    return { stageName, manifest };
-  });
+  return levels.map((manifest) => ({ stageName, manifest }));
 }
 
 async function readAllStageLevels() {
@@ -138,7 +144,7 @@ function toCatalogEntry({
   return {
     stageName,
     stage: manifest.stage,
-    id: manifest.id,
+    _id: manifest._id,
     name: manifest.name,
     deployed: manifest.deployed,
     levelNumber: manifest.levelNumber,
@@ -149,10 +155,10 @@ async function deployStoredLevel(input: unknown) {
   if (!input || typeof input !== 'object') {
     throw new Error('Selecciona un nivel para agregar.');
   }
-  const { stage, id, levelNumber } = input as Record<string, unknown>;
+  const { stage, _id, levelNumber } = input as Record<string, unknown>;
   if (
     typeof stage !== 'string' ||
-    typeof id !== 'string' ||
+    typeof _id !== 'string' ||
     typeof levelNumber !== 'number'
   ) {
     throw new Error('Selecciona un nivel válido para agregar.');
@@ -160,7 +166,7 @@ async function deployStoredLevel(input: unknown) {
 
   const allLevels = await readAllStageLevels();
   const target = allLevels.find(
-    (level) => level.stageName === stage && level.manifest.id === id,
+    (level) => level.stageName === stage && level.manifest._id === _id,
   );
   if (!target) {
     throw new Error('No se encontró el nivel seleccionado.');
@@ -174,42 +180,37 @@ async function deployStoredLevel(input: unknown) {
     getInsertedLevelNumberAssignments(
       allLevels.map((level) => level.manifest),
       stageNumber,
-      target.manifest.id,
+      target.manifest._id,
       levelNumber,
-    ).map(({ id: manifestId, levelNumber: assignedLevelNumber }) => [
-      manifestId,
+    ).map(({ _id: manifestObjectId, levelNumber: assignedLevelNumber }) => [
+      manifestObjectId,
       assignedLevelNumber,
     ]),
   );
-  const targetLevelNumber = assignments.get(target.manifest.id);
+  const targetLevelNumber = assignments.get(target.manifest._id);
   if (!targetLevelNumber) {
     throw new Error('No se pudo calcular la posición del nivel.');
   }
-  const manifest = createLevelManifest(
-    {
-      ...target.manifest,
-      deployed: true,
-      stage: stageNumber,
-      levelNumber: targetLevelNumber,
-    },
-    { requireComplete: true },
-  );
+  const manifest = updateLevelDocument(target.manifest, {
+    deployed: true,
+    stage: stageNumber,
+    levelNumber: targetLevelNumber,
+  });
   const shiftedManifests = allLevels
     .filter(
       (level) =>
-        level.manifest.id !== target.manifest.id &&
+        level.manifest._id !== target.manifest._id &&
         level.manifest.deployed &&
         level.manifest.stage === stageNumber,
     )
     .map((level) => {
-      const assignedLevelNumber = assignments.get(level.manifest.id);
+      const assignedLevelNumber = assignments.get(level.manifest._id);
       if (!assignedLevelNumber) {
         throw new Error('No se pudo recalcular el orden de Play.');
       }
-      return createLevelManifest(
-        { ...level.manifest, levelNumber: assignedLevelNumber },
-        { requireComplete: true },
-      );
+      return updateLevelDocument(level.manifest, {
+        levelNumber: assignedLevelNumber,
+      });
     });
   await replaceLevelDocuments([manifest, ...shiftedManifests]);
 
@@ -220,14 +221,14 @@ async function undeployStoredLevel(input: unknown) {
   if (!input || typeof input !== 'object') {
     throw new Error('Selecciona un nivel para quitar.');
   }
-  const { stage, id } = input as Record<string, unknown>;
-  if (typeof stage !== 'string' || typeof id !== 'string') {
+  const { stage, _id } = input as Record<string, unknown>;
+  if (typeof stage !== 'string' || typeof _id !== 'string') {
     throw new Error('Selecciona un nivel válido para quitar.');
   }
 
   const allLevels = await readAllStageLevels();
   const target = allLevels.find(
-    (level) => level.stageName === stage && level.manifest.id === id,
+    (level) => level.stageName === stage && level.manifest._id === _id,
   );
   if (!target) {
     throw new Error('No se encontró el nivel seleccionado.');
@@ -237,40 +238,36 @@ async function undeployStoredLevel(input: unknown) {
   }
 
   const stageNumber = stageNameToNumber(stage);
-  const removedManifest = createLevelManifest(
-    {
-      ...target.manifest,
-      deployed: false,
-      stage: stageNumber,
-      levelNumber: null,
-    },
-    { requireComplete: true },
-  );
+  const removedManifest = updateLevelDocument(target.manifest, {
+    deployed: false,
+    stage: stageNumber,
+    levelNumber: null,
+  });
   const remainingManifests = allLevels
-    .filter((level) => level.manifest.id !== target.manifest.id)
+    .filter((level) => level.manifest._id !== target.manifest._id)
     .map((level) => level.manifest);
   const assignments = new Map(
     getCompactLevelNumberAssignments(remainingManifests, stageNumber).map(
-      ({ id: manifestId, levelNumber }) => [manifestId, levelNumber],
+      ({ _id: manifestObjectId, levelNumber }) => [
+        manifestObjectId,
+        levelNumber,
+      ],
     ),
   );
 
   const compactedManifests = allLevels
     .filter(
       (level) =>
-        level.manifest.id !== target.manifest.id &&
+        level.manifest._id !== target.manifest._id &&
         level.manifest.deployed &&
         level.manifest.stage === stageNumber,
     )
     .map((level) => {
-      const levelNumber = assignments.get(level.manifest.id);
+      const levelNumber = assignments.get(level.manifest._id);
       if (!levelNumber) {
         throw new Error('No se pudo recalcular el orden de Play.');
       }
-      return createLevelManifest(
-        { ...level.manifest, levelNumber },
-        { requireComplete: true },
-      );
+      return updateLevelDocument(level.manifest, { levelNumber });
     });
   await replaceLevelDocuments([removedManifest, ...compactedManifests]);
 
@@ -281,10 +278,10 @@ async function writeLevelManifest({
   name,
   originalSolution,
 }: LevelManifestPayload) {
-  const id = randomUUID();
-  const manifest = createLevelManifest({ id, name, originalSolution });
+  const manifest = createLevelManifest({ name, originalSolution });
+  let _id: string;
   try {
-    await insertLevelDocument(manifest);
+    _id = await insertLevelDocument(manifest);
   } catch (error) {
     if (isDuplicateLevelKeyError(error)) {
       throw new Error('Ya existe un nivel con ese nombre. Elige otro.');
@@ -292,15 +289,15 @@ async function writeLevelManifest({
     throw error;
   }
 
-  return { id };
+  return { _id };
 }
 
 async function completeLevelManifest({
-  id,
+  _id,
   initialDistribution,
   initialHand,
 }: LevelInitialStatePayload) {
-  const stored = await readLevelDocumentById(id);
+  const stored = await readLevelDocumentByObjectId(_id);
   if (!stored) {
     throw new Error('No se encontró el nivel guardado en MongoDB.');
   }
@@ -318,18 +315,20 @@ async function completeLevelManifest({
     );
   }
 
-  const manifest = createLevelManifest(
-    {
-      id,
-      name: original.name,
-      originalSolution: original.originalSolution,
-      initialDistribution,
-      initialHand,
-    },
-    { requireComplete: true },
-  );
+  const manifest: LevelDocument = {
+    _id,
+    ...createLevelManifest(
+      {
+        name: original.name,
+        originalSolution: original.originalSolution,
+        initialDistribution,
+        initialHand,
+      },
+      { requireComplete: true },
+    ),
+  };
   await replaceLevelDocuments([manifest]);
-  return { id };
+  return { _id };
 }
 
 function levelManifestWriter(): Plugin {

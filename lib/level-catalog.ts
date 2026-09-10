@@ -4,12 +4,12 @@ import {
   type ColorId,
   type LevelDefinition,
 } from './hextile.ts';
-import type { LevelManifest } from './level-manifest.ts';
+import type { LevelDocument, LevelManifest } from './level-manifest.ts';
 
 export type LevelCatalogEntry = {
   stageName: string;
   stage: number;
-  id: string;
+  _id: string;
   name: string;
   deployed: boolean;
   levelNumber: number | null;
@@ -29,7 +29,7 @@ export function sortLevelCatalogEntries(
     }
     return (
       left.name.localeCompare(right.name, 'es', { sensitivity: 'base' }) ||
-      left.id.localeCompare(right.id)
+      left._id.localeCompare(right._id)
     );
   });
 }
@@ -60,9 +60,9 @@ export function getAvailableLevelPositions(
 }
 
 export function getInsertedLevelNumberAssignments(
-  manifests: readonly LevelManifest[],
+  manifests: readonly LevelDocument[],
   stage: number,
-  insertedId: string,
+  insertedObjectId: string,
   insertedLevelNumber: number,
 ) {
   const deployed = manifests
@@ -71,7 +71,7 @@ export function getInsertedLevelNumberAssignments(
       (left, right) =>
         (left.levelNumber ?? Number.MAX_SAFE_INTEGER) -
           (right.levelNumber ?? Number.MAX_SAFE_INTEGER) ||
-        left.id.localeCompare(right.id),
+        left._id.localeCompare(right._id),
     );
   const maximumPosition = deployed.length + 1;
 
@@ -83,17 +83,17 @@ export function getInsertedLevelNumberAssignments(
     throw new Error(`La posición debe estar entre 1 y ${maximumPosition}.`);
   }
 
-  const orderedIds = deployed.map((manifest) => manifest.id);
-  orderedIds.splice(insertedLevelNumber - 1, 0, insertedId);
+  const orderedIds = deployed.map((manifest) => manifest._id);
+  orderedIds.splice(insertedLevelNumber - 1, 0, insertedObjectId);
 
-  return orderedIds.map((id, index) => ({
-    id,
+  return orderedIds.map((_id, index) => ({
+    _id,
     levelNumber: index + 1,
   }));
 }
 
 export function getCompactLevelNumberAssignments(
-  manifests: readonly LevelManifest[],
+  manifests: readonly LevelDocument[],
   stage: number,
 ) {
   return manifests
@@ -102,10 +102,10 @@ export function getCompactLevelNumberAssignments(
       (left, right) =>
         (left.levelNumber ?? Number.MAX_SAFE_INTEGER) -
           (right.levelNumber ?? Number.MAX_SAFE_INTEGER) ||
-        left.id.localeCompare(right.id),
+        left._id.localeCompare(right._id),
     )
     .map((manifest, index) => ({
-      id: manifest.id,
+      _id: manifest._id,
       levelNumber: index + 1,
     }));
 }

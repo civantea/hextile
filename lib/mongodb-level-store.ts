@@ -1,11 +1,12 @@
 import {
   MongoClient,
+  ObjectId,
   MongoServerError,
   type Collection,
   type Document as MongoDocument,
 } from 'mongodb';
 
-import type { LevelManifest } from './level-manifest.ts';
+import type { LevelDocument, LevelManifest } from './level-manifest.ts';
 import { assertLevelManifestSchema } from './level-schema.ts';
 
 const DEFAULT_MONGODB_URI = 'mongodb://127.0.0.1:27017';
@@ -19,7 +20,6 @@ const levelCollectionValidator: MongoDocument = {
     additionalProperties: false,
     required: [
       '_id',
-      'id',
       'name',
       'deployed',
       'stage',
@@ -27,8 +27,7 @@ const levelCollectionValidator: MongoDocument = {
       'originalSolution',
     ],
     properties: {
-      _id: {},
-      id: { bsonType: 'string' },
+      _id: { bsonType: 'objectId' },
       name: { bsonType: 'string', minLength: 1, maxLength: 80 },
       deployed: { bsonType: 'bool' },
       stage: { bsonType: ['int', 'long', 'double'], minimum: 1 },
@@ -103,14 +102,29 @@ async function initializeLevelCollection() {
         throw error;
       }
     }
+  } else {
+    await database.command({
+      collMod: collectionName,
+      validator: levelCollectionValidator,
+      validationAction: 'error',
+      validationLevel: 'strict',
+    });
+
+    const legacyCollection = database.collection<MongoDocument>(collectionName);
+    const legacyIdIndexExists = (await legacyCollection.indexes()).some(
+      (index) => index.name === 'unique_level_id',
+    );
+    if (legacyIdIndexExists) {
+      await legacyCollection.dropIndex('unique_level_id');
+    }
+    await legacyCollection.updateMany(
+      { id: { $exists: true } },
+      { $unset: { id: '' } },
+    );
   }
 
   const collection = database.collection<LevelManifest>(collectionName);
   await Promise.all([
-    collection.createIndex(
-      { id: 1 },
-      { unique: true, name: 'unique_level_id' },
-    ),
     collection.createIndex(
       { name: 1 },
       {
@@ -138,13 +152,22 @@ export function getLevelCollection() {
   return levelCollectionPromise;
 }
 
-function toLevelManifest(
-  document: LevelManifest & { _id?: unknown },
+function toLevelDocument(
+  document: LevelManifest & { _id: ObjectId },
   { requireComplete = false }: { requireComplete?: boolean } = {},
-) {
-  const { _id: _mongoId, ...manifest } = document;
+): LevelDocument {
+  const { _id, ...manifest } = document;
   assertLevelManifestSchema(manifest, { requireComplete });
-  return manifest;
+  return { _id: _id.toHexString(), ...manifest };
+}
+
+function splitLevelDocument(document: LevelDocument) {
+  const { _id, ...manifest } = document;
+  if (!/^[0-9a-f]{24}$/i.test(_id)) {
+    throw new Error('El nivel contiene un _id de MongoDB no válido.');
+  }
+  assertLevelManifestSchema(manifest);
+  return { _id: new ObjectId(_id), manifest };
 }
 
 export async function listLevelStageNumbers() {
@@ -171,38 +194,40 @@ export async function readLevelDocuments(stage?: number) {
     .toArray();
 
   return documents.map((document) =>
-    toLevelManifest(document, { requireComplete: true }),
+    toLevelDocument(document, { requireComplete: true }),
   );
 }
 
-export async function readLevelDocumentById(id: string) {
+export async function readLevelDocumentByObjectId(_id: string) {
+  if (!/^[0-9a-f]{24}$/i.test(_id)) return null;
   const collection = await getLevelCollection();
-  const document = await collection.findOne({ id });
-  return document ? toLevelManifest(document) : null;
+  const document = await collection.findOne({ _id: new ObjectId(_id) });
+  return document ? toLevelDocument(document) : null;
 }
 
 export async function insertLevelDocument(manifest: LevelManifest) {
   assertLevelManifestSchema(manifest);
   const collection = await getLevelCollection();
-  await collection.insertOne(manifest);
+  const result = await collection.insertOne(manifest);
+  return result.insertedId.toHexString();
 }
 
-export async function replaceLevelDocuments(manifests: LevelManifest[]) {
-  manifests.forEach((manifest) => assertLevelManifestSchema(manifest));
-  if (manifests.length === 0) return;
+export async function replaceLevelDocuments(documents: LevelDocument[]) {
+  const replacements = documents.map(splitLevelDocument);
+  if (replacements.length === 0) return;
 
   const collection = await getLevelCollection();
   const result = await collection.bulkWrite(
-    manifests.map((manifest) => ({
+    replacements.map(({ _id, manifest }) => ({
       replaceOne: {
-        filter: { id: manifest.id },
+        filter: { _id },
         replacement: manifest,
       },
     })),
     { ordered: true },
   );
 
-  if (result.matchedCount !== manifests.length) {
+  if (result.matchedCount !== replacements.length) {
     throw new Error(
       'Uno o más niveles dejaron de existir durante la operación.',
     );

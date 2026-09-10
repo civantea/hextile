@@ -51,7 +51,7 @@ export function assertLevelManifestSchema(
       );
     }
     parseLevelInitialStatePayload({
-      id: manifest.id,
+      _id: '000000000000000000000000',
       initialDistribution: manifest.initialDistribution,
       initialHand: manifest.initialHand,
     });

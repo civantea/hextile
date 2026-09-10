@@ -23,7 +23,7 @@ import {
 } from '../lib/level-catalog.ts';
 
 const LEVELS_DIRECTORY = new URL('../niveles/', import.meta.url);
-const TEST_LEVEL_ID = 'd94b7242-cf09-49f2-a4fc-334f53661c31';
+const TEST_MONGO_ID = '507f1f77bcf86cd799439011';
 
 test('la solución original usa coordenadas como claves y colores como valores', () => {
   const placements = {
@@ -90,7 +90,7 @@ test('rechaza nombres o soluciones originales inválidas', () => {
 
 test('prepara un estado inicial con distribución y mano por color', () => {
   const payload = parseLevelInitialStatePayload({
-    id: 'nivel-uno',
+    _id: TEST_MONGO_ID,
     initialDistribution: {
       '0,0': 'verde',
       '1,0': 'verde',
@@ -106,7 +106,7 @@ test('prepara un estado inicial con distribución y mano por color', () => {
   });
 
   assert.deepEqual(payload, {
-    id: 'nivel-uno',
+    _id: TEST_MONGO_ID,
     initialDistribution: {
       '0,0': 'verde',
       '1,0': 'verde',
@@ -138,7 +138,7 @@ test('rechaza una mano vacía o un estado distinto de la solución original', ()
   assert.throws(
     () =>
       parseLevelInitialStatePayload({
-        id: 'nivel-uno',
+        _id: TEST_MONGO_ID,
         initialDistribution: { '0,0': 'verde' },
         initialHand: { verde: 0 },
       }),
@@ -164,13 +164,11 @@ test('rechaza una mano vacía o un estado distinto de la solución original', ()
 
 test('genera manifiestos nuevos desde el esquema con deployed en false', () => {
   const manifest = createLevelManifest({
-    id: TEST_LEVEL_ID,
     name: 'Nivel de esquema',
     originalSolution: { '0,0': 'celeste' },
   });
 
   assert.deepEqual(manifest, {
-    id: TEST_LEVEL_ID,
     name: 'Nivel de esquema',
     deployed: false,
     stage: 1,
@@ -184,7 +182,18 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
   assert.throws(
     () =>
       assertLevelManifestSchema({
-        id: TEST_LEVEL_ID,
+        id: 'd94b7242-cf09-49f2-a4fc-334f53661c31',
+        name: 'Identificador legado',
+        deployed: false,
+        stage: 1,
+        levelNumber: null,
+        originalSolution: { '0,0': 'celeste' },
+      }),
+    /additional properties/,
+  );
+  assert.throws(
+    () =>
+      assertLevelManifestSchema({
         name: 'Sin estado',
         originalSolution: { '0,0': 'celeste' },
       }),
@@ -193,7 +202,6 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
   assert.throws(
     () =>
       assertLevelManifestSchema({
-        id: TEST_LEVEL_ID,
         name: 'Estado incorrecto',
         deployed: 'false',
         stage: 1,
@@ -205,7 +213,6 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
   assert.throws(
     () =>
       assertLevelManifestSchema({
-        id: TEST_LEVEL_ID,
         name: 'Sin posición',
         deployed: true,
         stage: 1,
@@ -217,7 +224,6 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
   assert.throws(
     () =>
       assertLevelManifestSchema({
-        id: TEST_LEVEL_ID,
         name: 'Posición sin despliegue',
         deployed: false,
         stage: 1,
@@ -230,7 +236,6 @@ test('el esquema rechaza manifiestos sin deployed o con tipo incorrecto', () => 
 
 test('el esquema exige el estado inicial antes de entregar un nivel completo', () => {
   const incomplete = createLevelManifest({
-    id: TEST_LEVEL_ID,
     name: 'Incompleto',
     originalSolution: { '0,0': 'verde' },
   });
@@ -245,7 +250,6 @@ test('el esquema exige el estado inicial antes de entregar un nivel completo', (
 
   const complete = createLevelManifest(
     {
-      id: TEST_LEVEL_ID,
       name: 'Completo',
       originalSolution: { '0,0': 'verde', '1,0': 'verde' },
       initialDistribution: { '0,0': 'verde' },
@@ -269,7 +273,6 @@ test('el esquema exige el estado inicial antes de entregar un nivel completo', (
 test('convierte un manifiesto agregado en el siguiente nivel jugable', () => {
   const manifest = createLevelManifest(
     {
-      id: TEST_LEVEL_ID,
       name: 'Nombre interno que no se muestra',
       deployed: true,
       stage: 2,
@@ -340,19 +343,19 @@ test('ofrece una posición por cada nivel desplegado más la posición final', (
 
 test('inserta un nivel y recorre únicamente los posteriores de su etapa', () => {
   const manifests = [
-    { id: 'primero', deployed: true, stage: 1, levelNumber: 1 },
-    { id: 'segundo', deployed: true, stage: 1, levelNumber: 2 },
-    { id: 'tercero', deployed: true, stage: 1, levelNumber: 3 },
-    { id: 'otra-etapa', deployed: true, stage: 2, levelNumber: 1 },
+    { _id: 'primero', deployed: true, stage: 1, levelNumber: 1 },
+    { _id: 'segundo', deployed: true, stage: 1, levelNumber: 2 },
+    { _id: 'tercero', deployed: true, stage: 1, levelNumber: 3 },
+    { _id: 'otra-etapa', deployed: true, stage: 2, levelNumber: 1 },
   ];
 
   assert.deepEqual(
     getInsertedLevelNumberAssignments(manifests, 1, 'nuevo', 2),
     [
-      { id: 'primero', levelNumber: 1 },
-      { id: 'nuevo', levelNumber: 2 },
-      { id: 'segundo', levelNumber: 3 },
-      { id: 'tercero', levelNumber: 4 },
+      { _id: 'primero', levelNumber: 1 },
+      { _id: 'nuevo', levelNumber: 2 },
+      { _id: 'segundo', levelNumber: 3 },
+      { _id: 'tercero', levelNumber: 4 },
     ],
   );
   assert.throws(
@@ -365,16 +368,16 @@ test('compacta la numeración sin modificar otras etapas', () => {
   assert.deepEqual(
     getCompactLevelNumberAssignments(
       [
-        { id: 'primero', deployed: true, stage: 1, levelNumber: 2 },
-        { id: 'retirado', deployed: false, stage: 1, levelNumber: null },
-        { id: 'ultimo', deployed: true, stage: 1, levelNumber: 4 },
-        { id: 'otra-etapa', deployed: true, stage: 2, levelNumber: 6 },
+        { _id: 'primero', deployed: true, stage: 1, levelNumber: 2 },
+        { _id: 'retirado', deployed: false, stage: 1, levelNumber: null },
+        { _id: 'ultimo', deployed: true, stage: 1, levelNumber: 4 },
+        { _id: 'otra-etapa', deployed: true, stage: 2, levelNumber: 6 },
       ],
       1,
     ),
     [
-      { id: 'primero', levelNumber: 1 },
-      { id: 'ultimo', levelNumber: 2 },
+      { _id: 'primero', levelNumber: 1 },
+      { _id: 'ultimo', levelNumber: 2 },
     ],
   );
 });
@@ -384,7 +387,7 @@ test('ordena catálogos desplegados por número y pendientes por nombre', () => 
     {
       stageName: 'etapa-1',
       stage: 1,
-      id: 'zeta',
+      _id: 'zeta',
       name: 'Zeta',
       deployed: true,
       levelNumber: 1,
@@ -392,7 +395,7 @@ test('ordena catálogos desplegados por número y pendientes por nombre', () => 
     {
       stageName: 'etapa-1',
       stage: 1,
-      id: 'arbol',
+      _id: 'arbol',
       name: 'Árbol',
       deployed: true,
       levelNumber: 2,
@@ -400,11 +403,11 @@ test('ordena catálogos desplegados por número y pendientes por nombre', () => 
   ];
 
   assert.deepEqual(
-    sortLevelCatalogEntries(entries, 'deployed').map((entry) => entry.id),
+    sortLevelCatalogEntries(entries, 'deployed').map((entry) => entry._id),
     ['zeta', 'arbol'],
   );
   assert.deepEqual(
-    sortLevelCatalogEntries(entries, 'undeployed').map((entry) => entry.id),
+    sortLevelCatalogEntries(entries, 'undeployed').map((entry) => entry._id),
     ['arbol', 'zeta'],
   );
 });
